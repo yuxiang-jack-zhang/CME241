@@ -46,11 +46,20 @@ AGENT_CONFIGS = {
         epsilon_start=1.0, epsilon_end=0.05,
         epsilon_decay_episodes=4000,
     ),
+    "ppo": dict(
+        state_dim=8, n_actions=N_ACTIONS,
+        lr=3e-4, hidden=128,
+        rollout_steps=512, ppo_epochs=4, minibatch_size=64,
+        clip_range=0.2, ent_coef=0.01, vf_coef=0.5,
+        max_grad_norm=0.5, gae_lambda=0.95, gamma=1.0,
+        epsilon_start=0.3, epsilon_end=0.0, epsilon_decay_episodes=3000,
+    ),
 }
 
 TRAIN_EPISODES = {
     "linear_q": 4000,
     "dqn": 6000,
+    "ppo": 6000,
 }
 
 
@@ -74,17 +83,15 @@ def main():
         train_results[key] = (returns, avg, losses)
 
     # ── 2. Plot learning curves ──
-    lin_r, lin_a, _ = train_results["linear_q"]
-    dqn_r, dqn_a, dqn_l = train_results["dqn"]
-    plot_learning_curves(lin_r, lin_a, dqn_r, dqn_a, dqn_l, plot_dir=PLOT_DIR)
+    plot_learning_curves(train_results, plot_dir=PLOT_DIR)
     print(f"\nSaved learning curves to {PLOT_DIR}/")
 
     # ── 3. Policy visualizations ──
     agents_list = list(trained_agents.values())
     plot_policy_heatmaps(agents_list, plot_dir=PLOT_DIR)
-    # Regime comparison for DQN
-    if "dqn" in trained_agents:
-        plot_regime_comparison(trained_agents["dqn"], plot_dir=PLOT_DIR)
+    for key in ("dqn", "ppo"):
+        if key in trained_agents:
+            plot_regime_comparison(trained_agents[key], plot_dir=PLOT_DIR)
 
     # ── 4. Monte Carlo simulations ──
     strategy_names = []
@@ -121,7 +128,8 @@ def main():
     plot_wealth_trajectories(strategy_names, sim_results, plot_dir=PLOT_DIR)
     plot_utility_distributions(strategy_names, sim_results, plot_dir=PLOT_DIR)
     plot_allocation_stacks(strategy_names, sim_results, plot_dir=PLOT_DIR)
-    plot_consumption_paths(strategy_names, sim_results, plot_dir=PLOT_DIR)
+    n_rl = len(trained_agents)
+    plot_consumption_paths(strategy_names, sim_results, n_rl_agents=n_rl, plot_dir=PLOT_DIR)
     print(f"All plots saved to {PLOT_DIR}/")
 
 

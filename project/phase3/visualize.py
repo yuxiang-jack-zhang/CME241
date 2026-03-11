@@ -33,9 +33,25 @@ def _savefig(fig, plot_dir, name):
 
 # ── Policy extraction helper ──
 
+def _greedy_action(agent, state):
+    """Get the greedy action index from any agent type."""
+    if hasattr(agent, 'greedy_action'):
+        return agent.greedy_action(state)
+    elif hasattr(agent, 'q_net'):
+        from .agents.dqn import device
+        with torch.no_grad():
+            s = torch.FloatTensor(state).unsqueeze(0).to(device)
+            q = agent.q_net(s)
+            return int(q.argmax(dim=1).item())
+    elif hasattr(agent, 'q_values'):
+        q = agent.q_values(state)
+        return int(np.argmax(q))
+    else:
+        raise ValueError(f"Cannot extract greedy action from {type(agent)}")
+
+
 def extract_policy_grid(agent, wealth_grid, t_grid, y=1, z=1):
     """Query agent for greedy action at each (t, W) point."""
-    from .agents.dqn import device
     env_tmp = PortfolioEnv()
     stock_alloc = np.zeros((len(t_grid), len(wealth_grid)))
     cons_frac_grid = np.zeros((len(t_grid), len(wealth_grid)))
@@ -49,15 +65,7 @@ def extract_policy_grid(agent, wealth_grid, t_grid, y=1, z=1):
             env_tmp.done = False
             state = env_tmp.featurize()
 
-            if hasattr(agent, 'q_net'):
-                with torch.no_grad():
-                    s = torch.FloatTensor(state).unsqueeze(0).to(device)
-                    q = agent.q_net(s)
-                    action = int(q.argmax(dim=1).item())
-            else:
-                q = agent.q_values(state)
-                action = int(np.argmax(q))
-
+            action = _greedy_action(agent, state)
             cf, weights = env_tmp.decode_action(action)
             stock_alloc[ti, wi] = weights[0]
             cons_frac_grid[ti, wi] = cf
@@ -67,36 +75,47 @@ def extract_policy_grid(agent, wealth_grid, t_grid, y=1, z=1):
 
 # ── Plot functions ──
 
-def plot_learning_curves(lin_returns, lin_avg, dqn_returns, dqn_avg, dqn_losses,
-                         plot_dir="plots"):
-    _setup()
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+def plot_learning_curves(train_results, plot_dir="plots"):
+    """Plot learning curves for all trained agents.
 
-    axes[0].plot(lin_returns, alpha=0.1, color="tab:blue")
-    axes[0].plot(lin_avg, linewidth=2, color="tab:blue", label="Linear Q")
-    axes[0].plot(dqn_returns, alpha=0.1, color="tab:orange")
-    axes[0].plot(dqn_avg, linewidth=2, color="tab:orange", label="DQN")
+    train_results: dict mapping agent key -> (returns, running_avg, losses)
+    """
+    _setup()
+    tab_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
+    n_agents = len(train_results)
+    has_losses = any(len(v[2]) > 0 for v in train_results.values())
+    n_cols = 3 if has_losses else 2
+    fig, axes = plt.subplots(1, n_cols, figsize=(6 * n_cols, 5))
+
+    for i, (key, (returns, avg, losses)) in enumerate(train_results.items()):
+        c = tab_colors[i % len(tab_colors)]
+        axes[0].plot(returns, alpha=0.08, color=c)
+        axes[0].plot(avg, linewidth=2, color=c, label=key)
+        axes[1].plot(avg, linewidth=2, color=c, label=key)
     axes[0].set_xlabel("Episode")
     axes[0].set_ylabel("Episode Return")
     axes[0].set_title("Training Returns (100-ep running avg)")
     axes[0].legend()
-
-    axes[1].plot(lin_avg, linewidth=2, color="tab:blue", label="Linear Q")
-    axes[1].plot(dqn_avg, linewidth=2, color="tab:orange", label="DQN")
     axes[1].set_xlabel("Episode")
     axes[1].set_ylabel("Running Average Return")
     axes[1].set_title("Running Average Return")
     axes[1].legend()
 
-    if dqn_losses:
-        axes[2].plot(dqn_losses, alpha=0.3, color="tab:orange")
+    if has_losses:
         window = 100
-        if len(dqn_losses) > window:
-            smooth = np.convolve(dqn_losses, np.ones(window)/window, mode='valid')
-            axes[2].plot(range(window-1, len(dqn_losses)), smooth, linewidth=2, color="tab:red")
+        for i, (key, (_, _, losses)) in enumerate(train_results.items()):
+            if not losses:
+                continue
+            c = tab_colors[i % len(tab_colors)]
+            axes[2].plot(losses, alpha=0.2, color=c)
+            if len(losses) > window:
+                smooth = np.convolve(losses, np.ones(window)/window, mode='valid')
+                axes[2].plot(range(window-1, len(losses)), smooth,
+                             linewidth=2, color=c, label=key)
         axes[2].set_xlabel("Episode")
         axes[2].set_ylabel("Loss")
-        axes[2].set_title("DQN Training Loss")
+        axes[2].set_title("Training Loss")
+        axes[2].legend()
 
     plt.tight_layout()
     _savefig(fig, plot_dir, "learning_curves.png")
@@ -241,12 +260,12 @@ def plot_allocation_stacks(strategy_names, sim_results, plot_dir="plots"):
     _savefig(fig, plot_dir, "allocation_stacks.png")
 
 
-def plot_consumption_paths(strategy_names, sim_results, plot_dir="plots"):
+def plot_consumption_paths(strategy_names, sim_results, n_rl_agents=3,
+                           plot_dir="plots"):
     _setup()
     fig, ax = plt.subplots(figsize=(12, 5))
 
-    # Plot first two (RL agents) with confidence bands
-    for i, name in enumerate(strategy_names[:2]):
+    for i, name in enumerate(strategy_names[:n_rl_agents]):
         c = sim_results[name]["cons"]
         mean_c = c.mean(axis=0)
         p10 = np.percentile(c, 10, axis=0)
@@ -255,8 +274,7 @@ def plot_consumption_paths(strategy_names, sim_results, plot_dir="plots"):
         ax.plot(range(T), mean_c, linewidth=2, color=color, label=name)
         ax.fill_between(range(T), p10, p90, alpha=0.15, color=color)
 
-    # Add baselines as dashed
-    for i, name in enumerate(strategy_names[2:], start=2):
+    for i, name in enumerate(strategy_names[n_rl_agents:], start=n_rl_agents):
         c = sim_results[name]["cons"]
         ax.plot(range(T), c.mean(axis=0), '--', linewidth=1.5,
                 color=COLORS[i % len(COLORS)], label=name)

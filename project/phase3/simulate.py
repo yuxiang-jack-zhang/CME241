@@ -93,9 +93,23 @@ def make_dqn_strategy(agent):
     return strategy
 
 
+def make_ppo_strategy(agent):
+    """Wrap a PPOAgent into a strategy function (greedy/deterministic)."""
+    def strategy(t, W, y, z):
+        env_tmp = PortfolioEnv()
+        env_tmp.t, env_tmp.W, env_tmp.y, env_tmp.z = t, W, y, z
+        env_tmp.done = False
+        state = env_tmp.featurize()
+        action = agent.greedy_action(state)
+        return env_tmp.decode_action(action)
+    return strategy
+
+
 def make_strategy(agent):
     """Generic wrapper: detect agent type and return appropriate strategy function."""
-    if hasattr(agent, 'q_net'):
+    if hasattr(agent, 'actor'):
+        return make_ppo_strategy(agent)
+    elif hasattr(agent, 'q_net'):
         return make_dqn_strategy(agent)
     elif hasattr(agent, 'q_values'):
         return make_linear_q_strategy(agent)
