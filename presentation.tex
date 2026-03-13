@@ -231,7 +231,7 @@ V_t(w, y, z) = \max_{(\alpha, \mathbf{w})} \left[ u(\alpha w) + \beta \!\!\sum_{
 
 \note{
 \textbf{[Jack speaks -- 1.5 min]}\\
-``Phase 2 gives us the exact solution using backward induction -- the standard dynamic programming approach from Chapter 4 of the textbook. We start at retirement, where value is just utility of your remaining wealth. Then we work backward: at each year, for every possible state, we try all 165 actions and pick the one that maximizes immediate utility plus discounted expected future value.''\\[0.5em]
+``Phase 2 gives us the exact solution using backward induction -- the standard dynamic programming approach. We start at retirement, where value is just utility of your remaining wealth. Then we work backward: at each year, for every possible state, we try all 165 actions and pick the one that maximizes immediate utility plus discounted expected future value.''\\[0.5em]
 ``With 484 states per period and 25 periods, this is about 2 million calculations total -- done in under half a second. The optimal policy makes intuitive sense: invest heavily in stocks when you're young because you have time to recover from crashes, and shift toward bonds as you approach retirement. It beats every static baseline we tested.''\\[0.5em]
 ``But this only works because we kept the problem small. What happens when we make it more realistic?''
 }
@@ -358,7 +358,7 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 \textbf{GLIE schedule} (Greedy in the Limit with Infinite Exploration):
 \begin{itemize}
     \item Start: $\epsilon = 1.0$ (fully random); decay linearly to $\epsilon = 0.05$ over 8K episodes
-    \item \textbf{Why GLIE matters:} Every $(s,a)$ visited infinitely often while policy converges to greedy -- \textit{necessary condition} for SARSA convergence (Theorem 12.4.1)
+    \item \textbf{Why GLIE matters:} Every $(s,a)$ visited infinitely often while policy converges to greedy -- \textit{necessary condition} for SARSA convergence
 \end{itemize}
 
 \vspace{0.2em}
@@ -375,7 +375,7 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 % ============================================================
 % SLIDE 10: DQN Explanation
 % ============================================================
-\begin{frame}{DQN: Deep Q-Network (Ch.\ 12.6 + Deep Learning)}
+\begin{frame}{DQN: Deep Q-Network}
 
 \textbf{Key idea:} Replace linear $Q(s,a;\mathbf{w}) = \mathbf{w}_a^\top\phi(s)$ with a neural network that can capture \textit{nonlinear} value functions.
 
@@ -403,12 +403,12 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 % ============================================================
 % SLIDE 11: PPO Explanation
 % ============================================================
-\begin{frame}{PPO: Proximal Policy Optimization (Ch.\ 13)}
+\begin{frame}{PPO: Proximal Policy Optimization}
 
 \textbf{Key idea:} Instead of learning a value function and deriving the policy, \textit{directly optimize the policy} $\pi_\theta(a|s)$.
 
 \vspace{0.3em}
-\textbf{Policy gradient theorem} (Ch.\ 13.1):
+\textbf{Policy gradient theorem}:
 \[
 \nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta}\!\left[\nabla_\theta \log \pi_\theta(a|s) \cdot A^{\pi}(s,a)\right]
 \]
@@ -426,7 +426,7 @@ L(\theta) = \mathbb{E}\!\left[\min\!\left(\frac{\pi_\theta}{\pi_{\text{old}}} A,
 
 \note{
 \textbf{[Jack speaks -- 1.5 min]}\\
-``PPO takes a completely different approach from the value-based methods. Instead of learning Q-values and deriving the policy, PPO directly parameterizes the policy as a neural network and optimizes it using the policy gradient theorem from Chapter 13.''\\[0.5em]
+``PPO takes a completely different approach from the value-based methods. Instead of learning Q-values and deriving the policy, PPO directly parameterizes the policy as a neural network and optimizes it using the policy gradient theorem.''\\[0.5em]
 ``The policy gradient says: increase the probability of actions that have positive advantage -- meaning they're better than average for that state. The advantage is estimated using Generalized Advantage Estimation, or GAE, which uses the critic's value function.''\\[0.5em]
 ``The key innovation in PPO is the clipped surrogate objective. Vanilla policy gradient can make huge updates that destroy the policy. PPO clips the probability ratio between the new and old policy to be within 1 plus or minus epsilon -- in our case 0.2. This keeps updates conservative and stable.''\\[0.5em]
 ``One critical implementation detail: we tried a shared-trunk actor-critic first, where both actor and critic share the first two layers. That failed -- the critic's value loss dominated the gradient and prevented the actor from learning meaningful action distributions. Splitting into completely separate actor and critic networks fixed this. The actor has 122K parameters, the critic 68K, for 191K total -- the most complex of our four agents.''
@@ -578,7 +578,7 @@ Both update $Q(S, A)$ using a TD target. The \textit{only} difference:
 % ============================================================
 \begin{frame}{SARSA: Theoretical Properties}
 
-\textbf{Theorem 12.4.1} (Convergence of Tabular SARSA):\\[0.3em]
+\textbf{Convergence of Tabular SARSA}:\\[0.3em]
 SARSA converges to $Q^*(s,a)$ under:
 \begin{enumerate}
     \item \textbf{GLIE} schedule: $\epsilon_k \to 0$, every $(s,a)$ visited infinitely often
@@ -600,7 +600,7 @@ $\Rightarrow$ SARSA with linear FA is the \textbf{most theoretically grounded} o
 
 \note{
 \textbf{[Patrick speaks -- 1 min]}\\
-``The textbook gives us a convergence theorem for tabular SARSA. Under two conditions -- GLIE exploration and Robbins-Monro step sizes -- SARSA converges to the true optimal Q function.''\\[0.5em]
+``There is a convergence theorem for tabular SARSA. Under two conditions -- GLIE exploration and Robbins-Monro step sizes -- SARSA converges to the true optimal Q function.''\\[0.5em]
 ``With function approximation, things are trickier. The deadly triad -- function approximation plus bootstrapping plus off-policy learning -- can cause divergence. SARSA with linear function approximation is the safest combination because it's on-policy and linear. This avoids the instability that DQN has to work around with its replay buffer and target network.''\\[0.5em]
 ``One subtlety on discounting: we use gamma equals 1 in the TD update, not 0.96. That's because beta to the t is already multiplied into each reward. So the reward at time t is already discounted by 0.96 to the t. If we also used gamma equals 0.96 in the update, we'd be double-discounting. The TD update with gamma equals 1 correctly implements the discounted CRRA objective.''\\[0.5em]
 ``We use a constant learning rate alpha equals 10 to the minus 5. This technically violates Robbins-Monro, but is standard practice. The TD-error clipping at plus or minus 10 provides additional stability when the large CRRA penalties from zero consumption appear early in training.''
@@ -966,8 +966,7 @@ Baselines (60/40, Equal, Glidepath) cluster left around $-2.5$ to $-3$.
 
 \vspace{2em}
 \normalsize
-Repository: \texttt{github.com/yuxiang-jack-zhang/CME241}\\[0.5em]
-Relevant textbook sections: Ch.\ 4 (DP), Ch.\ 12.4 (SARSA), Ch.\ 12.6 (Q-Learning), Ch.\ 13 (Policy Gradient)
+Repository: \texttt{github.com/yuxiang-jack-zhang/CME241}
 \end{frame}
 
 \note{
@@ -977,7 +976,7 @@ Relevant textbook sections: Ch.\ 4 (DP), Ch.\ 12.4 (SARSA), Ch.\ 12.6 (Q-Learnin
 \textit{``Why is gamma=1 in the TD update if beta=0.96?''} -- Because beta is already baked into the rewards as beta\^{}t * u(c\_t). Using gamma=0.96 in the update would double-discount. gamma=1 with discounted rewards correctly recovers the CRRA objective.\\[0.3em]
 \textit{``Why does DQN beat SARSA?''} -- DQN is off-policy: it uses max Q(s',a) in its target, learning from the optimal greedy policy regardless of exploration. SARSA uses Q(s', a') where a' is the exploratory action actually taken, which is more conservative. In this problem, the equity premium is strong enough that the aggressive off-policy updates pay off.\\[0.3em]
 \textit{``Why not use eligibility traces (SARSA($\lambda$))?''} -- With 40-step episodes, TD(0) already propagates value well. Adding traces could help early in training but adds hyperparameter complexity. Future work.\\[0.3em]
-\textit{``Is SARSA convergence guaranteed here?''} -- Not with function approximation. Theorem 12.4.1 is for tabular. But linear FA + on-policy is the safest combination -- avoids the deadly triad of FA + bootstrapping + off-policy.\\[0.3em]
+\textit{``Is SARSA convergence guaranteed here?''} -- Not with function approximation. The convergence theorem is for tabular. But linear FA + on-policy is the safest combination -- avoids the deadly triad of FA + bootstrapping + off-policy.\\[0.3em]
 \textit{``How does Phase 3 DP compare?''} -- We ran the DP solver on the Phase 3 environment (discretized wealth). It achieves E[Utility] = -1.456, confirming RL agents are close to optimal. DQN at -1.54 is only a 5\% optimality gap.\\[0.3em]
 \textit{``What's the deadly triad?''} -- Function approximation + bootstrapping + off-policy learning. This combination can cause Q-value divergence. SARSA avoids it (on-policy). DQN works around it with target network + replay buffer.
 }
