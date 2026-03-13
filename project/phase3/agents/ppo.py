@@ -103,6 +103,7 @@ class PPOAgent(BaseAgent):
     """Proximal Policy Optimization with clipped surrogate objective."""
 
     uses_replay = True
+    randomize_start = True
 
     def __init__(self, state_dim, n_actions, lr=3e-4, hidden=256,
                  rollout_steps=512, ppo_epochs=4, minibatch_size=64,

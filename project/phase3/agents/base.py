@@ -7,8 +7,13 @@ class BaseAgent(ABC):
     """Interface that all agents must implement."""
 
     # Set to True in agents that use store()/train_step() (DQN, PPO).
-    # Agents that use update() (LinearQ) leave this False.
+    # Agents that use update() (LinearQ, SARSA) leave this False.
     uses_replay = False
+
+    # Whether to randomize initial states during training.
+    # Neural network agents benefit from state diversity; linear agents
+    # can diverge when the state distribution is too broad.
+    randomize_start = False
 
     @property
     @abstractmethod

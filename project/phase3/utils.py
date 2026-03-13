@@ -7,8 +7,8 @@ from .config import GAMMA
 def crra_utility(c, gamma=GAMMA):
     """CRRA utility; returns large negative value for c <= 0.
 
-    Penalty is -1e4 (RL-friendly) rather than -inf, but still far worse
-    than the worst legitimate utility (~-5000 at minimum wealth).
+    Penalty of -1e4 provides a strong learning signal against zero
+    consumption. Linear agents use TD error clipping to stay stable.
     """
     c = np.asarray(c, dtype=float)
     result = np.full_like(c, -1e4)

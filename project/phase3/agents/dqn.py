@@ -65,6 +65,7 @@ class DQNAgent(BaseAgent):
     """Dueling DQN agent with target network and experience replay."""
 
     uses_replay = True
+    randomize_start = True
 
     def __init__(self, state_dim, n_actions, lr=1e-3, hidden=256, buffer_size=50000,
                  batch_size=64, target_update_freq=50, gamma=1.0,

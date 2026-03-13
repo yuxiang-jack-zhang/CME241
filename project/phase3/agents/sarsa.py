@@ -29,14 +29,14 @@ class SarsaAgent(BaseAgent):
         self.eps_end = epsilon_end
         self.eps_decay = epsilon_decay_episodes
 
-        # Polynomial features: original + squared + pairwise of continuous features
-        # State dim = 8 (2 continuous + 6 one-hot)
-        # Features: 8 original + 2 squared + 1 cross + bias = 12
-        self.feat_dim = state_dim + 3 + 1
+        # Rich feature expansion (matching LinearQAgent):
+        #   8 original + 3 polynomial (t^2, w^2, t*w)
+        #   + 6 interactions: t*y0..y2, t*z0..z2
+        #   + 6 interactions: w*y0..y2, w*z0..z2
+        #   + 1 bias = 24
+        self.feat_dim = 24
         self.weights = np.zeros((n_actions, self.feat_dim))
 
-        # Cache for the next action: ensures A' used in SARSA update
-        # is the same action actually executed in the next step.
         self._cached_next_action = None
 
     @property
@@ -44,10 +44,13 @@ class SarsaAgent(BaseAgent):
         return "SARSA"
 
     def _expand_features(self, state):
-        """Expand raw state features with polynomial terms."""
-        t_feat, w_feat = state[0], state[1]
-        poly = np.array([t_feat**2, w_feat**2, t_feat * w_feat])
-        return np.concatenate([state, poly, [1.0]])
+        """Expand raw state features with polynomial and interaction terms."""
+        t, w = state[0], state[1]
+        cat = state[2:]  # 6 one-hot values (3 income + 3 regime)
+        poly = np.array([t**2, w**2, t * w])
+        t_cross = t * cat
+        w_cross = w * cat
+        return np.concatenate([state, poly, t_cross, w_cross, [1.0]])
 
     def q_values(self, state):
         """Compute Q(s, a) for all actions."""
@@ -91,7 +94,7 @@ class SarsaAgent(BaseAgent):
             q_next = self.weights[next_action] @ self._expand_features(next_state)
             target = reward + self.gamma_discount * q_next
 
-        td_error = target - q_sa
+        td_error = np.clip(target - q_sa, -10, 10)
         self.weights[action] += self.alpha * td_error * phi
 
     def decay_epsilon(self, episode):

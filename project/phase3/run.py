@@ -42,8 +42,9 @@ AGENT_CONFIGS = {
     ),
     "sarsa": dict(
         state_dim=8, n_actions=N_ACTIONS,
-        alpha=5e-5, epsilon_start=1.0, epsilon_end=0.05,
-        epsilon_decay_episodes=2500,
+        alpha=1e-5, gamma_discount=1.0,
+        epsilon_start=1.0, epsilon_end=0.05,
+        epsilon_decay_episodes=8000,
     ),
     "dqn": dict(
         state_dim=8, n_actions=N_ACTIONS,
@@ -66,7 +67,7 @@ TRAIN_EPISODES = {
     "linear_q": 15000,
     "dqn": 15000,
     "ppo": 15000,
-    "sarsa": 4000,
+    "sarsa": 15000,
 }
 
 
@@ -96,9 +97,8 @@ def main():
     # ── 3. Policy visualizations ──
     agents_list = list(trained_agents.values())
     plot_policy_heatmaps(agents_list, plot_dir=PLOT_DIR)
-    for key in ("dqn", "ppo"):
-        if key in trained_agents:
-            plot_regime_comparison(trained_agents[key], plot_dir=PLOT_DIR)
+    for key in trained_agents:
+        plot_regime_comparison(trained_agents[key], plot_dir=PLOT_DIR)
 
     # ── 4. Monte Carlo simulations ──
     strategy_names = []
