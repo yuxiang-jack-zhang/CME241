@@ -163,7 +163,7 @@ $\Rightarrow$ Agent is \textbf{risk-averse}
 W_{t+1} = \underbrace{(W_t - c_t)}_{\text{savings}} \cdot \underbrace{(\mathbf{w}_t \cdot \mathbf{R}_t)}_{\text{portfolio return}} + \underbrace{\text{income}(y_{t+1})}_{\text{labor income}}
 \]
 
-\vspace{0.3em}
+\vspace{0.2em}
 \textbf{Income transitions} (Markov chain):
 \[
 P_y = \begin{pmatrix} 0.70 & 0.25 & 0.05 \\ 0.15 & 0.70 & 0.15 \\ 0.05 & 0.25 & 0.70 \end{pmatrix}
@@ -171,7 +171,7 @@ P_y = \begin{pmatrix} 0.70 & 0.25 & 0.05 \\ 0.15 & 0.70 & 0.15 \\ 0.05 & 0.25 & 
 \text{Income values: } \$3,\; \$10,\; \$25
 \]
 
-\vspace{0.3em}
+\vspace{0.2em}
 \textbf{Regime transitions} (Markov chain):
 \[
 P_z = \begin{pmatrix} 0.50 & 0.40 & 0.10 \\ 0.20 & 0.60 & 0.20 \\ 0.10 & 0.40 & 0.50 \end{pmatrix}
@@ -179,7 +179,7 @@ P_z = \begin{pmatrix} 0.50 & 0.40 & 0.10 \\ 0.20 & 0.60 & 0.20 \\ 0.10 & 0.40 & 
 \text{Regimes: Bear, Normal, Bull}
 \]
 
-\vspace{0.3em}
+\vspace{0.2em}
 \textbf{Asset returns:} 3 scenarios per regime (bad/medium/good) with regime-dependent probabilities. E.g., in a bear market, stocks return 0.82--1.02$\times$; in bull, 0.98--1.25$\times$.
 \end{frame}
 
@@ -203,14 +203,10 @@ V_t(w, y, z) = \max_{(\alpha, \mathbf{w})} \left[ u(\alpha w) + \beta \!\!\sum_{
 \textbf{Algorithm:}
 \begin{enumerate}
     \item Set $V_T(w) = u(w)$ for all terminal states
-    \item For $t = T{-}1, T{-}2, \ldots, 0$:
-    \begin{itemize}
-        \item For every state $(w_i, y, z)$: try all 165 actions, pick the best
-        \item Store optimal value and policy
-    \end{itemize}
+    \item For $t = T{-}1, T{-}2, \ldots, 0$: try all 165 actions per state, store best
 \end{enumerate}
 
-\vspace{0.5em}
+\vspace{0.3em}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \textbf{Phase 2 problem size:}
@@ -265,14 +261,14 @@ DP cells (if discretized)$^\dagger$ & \textbf{2.0M}  & \textbf{$\sim$238M} \\
 \end{tabular}
 
 \vspace{0.2em}
-{\scriptsize $^\dagger$ Hypothetical: 500-pt wealth grid, 10\% alloc.\ increments for Phase 3.}
+{\scriptsize $^\dagger$ 500-pt wealth grid, 10\% increments (hypothetical).}
 
-\vspace{0.3em}
-$\mathbf{119\times}$ \textbf{blowup} -- and this is still just 3 assets!
+\vspace{0.2em}
+$\mathbf{119\times}$ \textbf{blowup} -- and still just 3 assets!
 \end{column}
 \begin{column}{0.44\textwidth}
 \centering
-\begin{tikzpicture}[scale=0.75]
+\begin{tikzpicture}[scale=0.58]
     \fill[green!60] (0,0) rectangle (2, 1.8);
     \fill[red!60]   (3.5,0) rectangle (5.5, 7.0);
     \node[font=\small] at (1, -0.5) {Phase 2};
@@ -284,9 +280,8 @@ $\mathbf{119\times}$ \textbf{blowup} -- and this is still just 3 assets!
     \node[rotate=90, font=\small] at (-1.0, 3.5) {Total DP Cells};
 \end{tikzpicture}
 
-\vspace{1em}
-\textbf{Solution:} Function approximation.\\
-Learn $Q(s,a;\mathbf{w})$ from experience\\instead of tabulating every state.
+\vspace{0.4em}
+\textbf{Solution:} Function approx -- learn $Q(s,a;\mathbf{w})$ from experience instead of tabulating.
 
 $\Rightarrow$ \textbf{Reinforcement Learning}
 \end{column}
@@ -350,7 +345,7 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 
 \textbf{The core RL dilemma:} Should the agent \textit{exploit} its current knowledge (pick the best-known action) or \textit{explore} (try something new to learn more)?
 
-\vspace{0.5em}
+\vspace{0.2em}
 \textbf{$\epsilon$-Greedy policy:}
 \[
 \pi(a|s) = \begin{cases}
@@ -359,17 +354,15 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 \end{cases}
 \]
 
-\vspace{0.3em}
+\vspace{0.2em}
 \textbf{GLIE schedule} (Greedy in the Limit with Infinite Exploration):
 \begin{itemize}
-    \item Start: $\epsilon = 1.0$ (fully random -- explore the entire action space)
-    \item Decay linearly over 8,000 episodes (Linear Q, SARSA, DQN) or 5,000 (PPO)
-    \item End: $\epsilon = 0.05$ (mostly greedy, with 5\% exploration)
-    \item \textbf{Why GLIE matters:} Guarantees every state-action pair is visited infinitely often (exploration) while the policy converges to greedy (exploitation). This is a \textit{necessary condition} for SARSA convergence (Theorem 12.4.1).
+    \item Start: $\epsilon = 1.0$ (fully random); decay linearly to $\epsilon = 0.05$ over 8K episodes
+    \item \textbf{Why GLIE matters:} Every $(s,a)$ visited infinitely often while policy converges to greedy -- \textit{necessary condition} for SARSA convergence (Theorem 12.4.1)
 \end{itemize}
 
-\vspace{0.3em}
-\textbf{Financial intuition:} Early episodes are like a junior analyst trying random strategies; later episodes are a seasoned portfolio manager making targeted adjustments.
+\vspace{0.2em}
+\textbf{Financial intuition:} Early episodes: junior analyst trying random strategies. Late: seasoned manager making targeted adjustments.
 \end{frame}
 
 \note{
@@ -386,28 +379,16 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 
 \textbf{Key idea:} Replace linear $Q(s,a;\mathbf{w}) = \mathbf{w}_a^\top\phi(s)$ with a neural network that can capture \textit{nonlinear} value functions.
 
-\vspace{0.5em}
+\vspace{0.3em}
 \textbf{Two innovations that make it work:}
 \begin{enumerate}
-    \item \textbf{Experience Replay Buffer} (500,000 transitions)
-    \begin{itemize}
-        \item Store $(s, a, r, s', \text{done})$ tuples as the agent interacts
-        \item Sample random mini-batches (128) for training
-        \item Breaks temporal correlation $\to$ more stable gradient updates
-        \item Reuses data $\to$ more sample-efficient
-    \end{itemize}
+    \item \textbf{Experience Replay Buffer} (500,000 transitions): Store $(s, a, r, s')$ tuples; sample random mini-batches of 128. Breaks temporal correlation $\to$ stable gradients; reuses data efficiently.
 
-    \vspace{0.3em}
-    \item \textbf{Target Network} (updated every 1,000 steps)
-    \begin{itemize}
-        \item Separate copy of the Q-network, $Q(s,a;\mathbf{w}^-)$, used in the TD target
-        \item Target: $r + \gamma \max_{a'} Q(s', a'; \mathbf{w}^-)$ -- uses \textit{frozen} weights
-        \item Prevents the ``moving target'' problem where the target shifts with every gradient step
-    \end{itemize}
+    \item \textbf{Target Network} (updated every 1,000 steps): Frozen copy $Q(s,a;\mathbf{w}^-)$ used in TD target $r + \gamma \max_{a'} Q(s', a'; \mathbf{w}^-)$. Prevents the ``moving target'' problem.
 \end{enumerate}
 
-\vspace{0.3em}
-\textbf{Architecture (Dueling DQN):} Shared trunk (8 $\to$ 256 $\to$ 256, Tanh), then $\to$ Value stream (256 $\to$ 1) and Advantage stream (256 $\to$ 210). $Q = V + A - \bar{A}$. Total: $\sim$122K parameters.
+\vspace{0.2em}
+\textbf{Architecture (Dueling DQN):} Shared trunk (8$\to$256$\to$256, Tanh) $\to$ Value stream (256$\to$1) + Advantage stream (256$\to$210). $Q = V + A - \bar{A}$. Total: $\sim$122K params.
 \end{frame}
 
 \note{
@@ -426,27 +407,21 @@ PPO: $\epsilon = 0.3 \to 0.0$ over 5K episodes (primarily entropy-regularized).
 
 \textbf{Key idea:} Instead of learning a value function and deriving the policy, \textit{directly optimize the policy} $\pi_\theta(a|s)$.
 
-\vspace{0.5em}
+\vspace{0.3em}
 \textbf{Policy gradient theorem} (Ch.\ 13.1):
 \[
 \nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta}\!\left[\nabla_\theta \log \pi_\theta(a|s) \cdot A^{\pi}(s,a)\right]
 \]
-where $A^{\pi}(s,a) = Q^{\pi}(s,a) - V^{\pi}(s)$ is the \textbf{advantage} (how much better action $a$ is than average).
+where $A^{\pi}(s,a) = Q^{\pi}(s,a) - V^{\pi}(s)$ is the \textbf{advantage}.
 
-\vspace{0.5em}
-\textbf{PPO's clipped surrogate objective} (prevents destructively large updates):
+\vspace{0.2em}
+\textbf{PPO clipped objective} (prevents destructively large updates):
 \[
-L(\theta) = \mathbb{E}\!\left[\min\!\left(\frac{\pi_\theta(a|s)}{\pi_{\theta_\text{old}}(a|s)} A,\;\; \text{clip}\!\left(\frac{\pi_\theta}{\pi_{\theta_\text{old}}}, 1\!-\!\epsilon, 1\!+\!\epsilon\right) A \right)\right]
+L(\theta) = \mathbb{E}\!\left[\min\!\left(\frac{\pi_\theta}{\pi_{\text{old}}} A,\;\; \text{clip}\!\left(\frac{\pi_\theta}{\pi_{\text{old}}}, 1\!-\!\epsilon, 1\!+\!\epsilon\right) A \right)\right]
 \]
 
-\vspace{0.3em}
-\textbf{Actor-Critic architecture:}
-\begin{itemize}
-    \item \textbf{Actor} $\pi_\theta(a|s)$: outputs action probabilities (policy network)
-    \item \textbf{Critic} $V_\phi(s)$: estimates state value (used to compute advantage via GAE)
-    \item \textbf{Separate} networks (actor: $\sim$122K params, critic: $\sim$68K params). Total: $\sim$191K.
-    \item Both use 256-256 hidden layers with Tanh and orthogonal initialization.
-\end{itemize}
+\vspace{0.1em}
+\textbf{Actor-Critic:} Separate networks -- Actor $\pi_\theta$ (policy, $\sim$122K params) + Critic $V_\phi$ (value/GAE, $\sim$68K). Total: $\sim$191K. Both: 256-256 Tanh, orthogonal init.
 \end{frame}
 
 \note{
@@ -466,20 +441,20 @@ L(\theta) = \mathbb{E}\!\left[\min\!\left(\frac{\pi_\theta(a|s)}{\pi_{\theta_\te
 
 \textbf{SARSA} = \textbf{S}tate -- \textbf{A}ction -- \textbf{R}eward -- \textbf{S}tate -- \textbf{A}ction
 
-\vspace{0.5em}
-Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference:
+\vspace{0.2em}
+Both update $Q(S, A)$ using a TD target. The \textit{only} difference:
 
-\vspace{0.3em}
+\vspace{0.2em}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \centering
-\textbf{Q-Learning} (off-policy)\\[0.3em]
+\textbf{Q-Learning} (off-policy)\\[0.2em]
 \fbox{$\Delta \mathbf{w} = \alpha \bigl(R + \gamma \cdot \underset{a}{\max}\, Q(S'\!, a) - Q(S,A)\bigr) \nabla Q$}
 
-\vspace{0.5em}
+\vspace{0.2em}
 ``What's the \textit{best} I \textit{could} do next?''
 
-\vspace{0.3em}
+\vspace{0.2em}
 \begin{itemize}
     \item Assumes future actions are optimal
     \item Can overestimate Q-values
@@ -488,13 +463,13 @@ Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference
 \end{column}
 \begin{column}{0.48\textwidth}
 \centering
-\textbf{SARSA} (on-policy)\\[0.3em]
+\textbf{SARSA} (on-policy)\\[0.2em]
 \fbox{$\Delta \mathbf{w} = \alpha \bigl(R + \gamma \cdot Q(S'\!, A') - Q(S,A)\bigr) \nabla Q$}
 
-\vspace{0.5em}
+\vspace{0.2em}
 ``What will I \textit{actually} do next?''
 
-\vspace{0.3em}
+\vspace{0.2em}
 \begin{itemize}
     \item Uses the action $A'$ actually taken
     \item Accounts for exploration cost
@@ -503,20 +478,20 @@ Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference
 \end{column}
 \end{columns}
 
-\vspace{0.8em}
+\vspace{0.2em}
 \begin{center}
-\begin{tikzpicture}[scale=0.85, every node/.style={font=\small}]
-    \node[draw, rounded corners, fill=blue!15, minimum width=1.4cm, minimum height=0.6cm] (SA) at (0,0) {$S, A$};
-    \node[draw, circle, fill=orange!20, minimum size=0.6cm] (R) at (0,-1.0) {$R$};
-    \node[draw, ellipse, fill=blue!15, minimum width=1.4cm, minimum height=0.6cm] (Sp) at (0,-2.0) {$S'$};
-    \node[draw, rounded corners, fill=green!20, minimum width=1.4cm, minimum height=0.6cm] (Ap) at (0,-3.0) {$A'$};
+\begin{tikzpicture}[scale=0.72, every node/.style={font=\small}]
+    \node[draw, rounded corners, fill=blue!15, minimum width=1.1cm, minimum height=0.45cm] (SA) at (0,0) {$S, A$};
+    \node[draw, circle, fill=orange!20, minimum size=0.45cm] (R) at (0,-0.75) {$R$};
+    \node[draw, ellipse, fill=blue!15, minimum width=1.1cm, minimum height=0.45cm] (Sp) at (0,-1.5) {$S'$};
+    \node[draw, rounded corners, fill=green!20, minimum width=1.1cm, minimum height=0.45cm] (Ap) at (0,-2.25) {$A'$};
     \draw[->, thick] (SA) -- (R);
     \draw[->, thick] (R) -- (Sp);
     \draw[->, thick] (Sp) -- (Ap);
-    \node[right, font=\small] at (1.0, 0) {Current state-action};
-    \node[right, font=\small] at (1.0, -1.0) {Observe reward};
-    \node[right, font=\small] at (1.0, -2.0) {Observe next state};
-    \node[right, font=\small, text=green!40!black] at (1.0, -3.0) {Choose $A'$ via $\epsilon$-greedy $\leftarrow$ \textbf{same} $A'$ in update \& execution};
+    \node[right, font=\small] at (0.75, 0) {Current state-action};
+    \node[right, font=\small] at (0.75, -0.75) {Observe reward};
+    \node[right, font=\small] at (0.75, -1.5) {Observe next state};
+    \node[right, font=\small, text=green!40!black] at (0.75, -2.25) {Choose $A'$ via $\epsilon$-greedy $\leftarrow$ \textbf{same} $A'$ in update \& execution};
 \end{tikzpicture}
 \end{center}
 \end{frame}
@@ -537,14 +512,14 @@ Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference
 
 \textbf{Temporal Difference methods} form a spectrum parameterized by $\lambda \in [0, 1]$:
 
-\vspace{0.5em}
+\vspace{0.2em}
 \begin{center}
-\begin{tikzpicture}[scale=1.0]
+\begin{tikzpicture}[scale=0.85]
     % Axis
     \draw[->, thick] (0,0) -- (12,0);
-    \node[below] at (0, -0.3) {$\lambda = 0$};
-    \node[below] at (6, -0.3) {$\lambda \in (0,1)$};
-    \node[below] at (12, -0.3) {$\lambda = 1$};
+    \node[below, font=\small] at (0, -0.3) {$\lambda = 0$};
+    \node[below, font=\small] at (6, -0.3) {$\lambda \in (0,1)$};
+    \node[below, font=\small] at (12, -0.3) {$\lambda = 1$};
 
     % Labels
     \node[above, font=\bfseries, text=blue] at (0, 0.3) {TD(0)};
@@ -560,12 +535,12 @@ Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference
     \fill[red] (12,0) circle (4pt);
 
     % Our SARSA
-    \draw[->, thick, green!50!black] (0, -1.2) -- (0, -0.4);
-    \node[below, font=\bfseries, text=green!50!black] at (0, -1.3) {Our SARSA};
+    \draw[->, thick, green!50!black] (0, -1.0) -- (0, -0.4);
+    \node[below, font=\bfseries, text=green!50!black] at (0, -1.1) {Our SARSA};
 \end{tikzpicture}
 \end{center}
 
-\vspace{0.5em}
+\vspace{0.2em}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \textbf{Our SARSA = SARSA(0):}
@@ -587,8 +562,8 @@ Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference
 \end{column}
 \end{columns}
 
-\vspace{0.5em}
-\textbf{Bias-variance tradeoff:} TD(0) has the lowest variance but highest bias. MC has zero bias but highest variance. In our 40-step episodes, TD(0) learns faster because variance dominates.
+\vspace{0.2em}
+\textbf{Bias-variance tradeoff:} TD(0) has lowest variance but highest bias. MC has zero bias but highest variance. In our 40-step episodes, TD(0) learns faster because variance dominates.
 \end{frame}
 
 \note{
@@ -604,16 +579,13 @@ Both algorithms update $Q(S, A)$ using a TD target. The \textit{only} difference
 \begin{frame}{SARSA: Theoretical Properties}
 
 \textbf{Theorem 12.4.1} (Convergence of Tabular SARSA):\\[0.3em]
-SARSA converges to the optimal action-value function $Q(s,a) \to Q^*(s,a)$ under:
+SARSA converges to $Q^*(s,a)$ under:
 \begin{enumerate}
-    \item \textbf{GLIE} schedule: $\epsilon_k \to 0$, but every $(s,a)$ visited infinitely often
-    \item \textbf{Robbins-Monro} step sizes:
-    \[
-    \sum_{t=1}^{\infty} \alpha_t = \infty \qquad \text{and} \qquad \sum_{t=1}^{\infty} \alpha_t^2 < \infty
-    \]
+    \item \textbf{GLIE} schedule: $\epsilon_k \to 0$, every $(s,a)$ visited infinitely often
+    \item \textbf{Robbins-Monro:} $\sum \alpha_t = \infty$ and $\sum \alpha_t^2 < \infty$
 \end{enumerate}
 
-\vspace{0.5em}
+\vspace{0.3em}
 \textbf{With function approximation} (our case):
 \begin{itemize}
     \item No convergence guarantee in general (the ``deadly triad'': function approximation + bootstrapping + off-policy / on-policy)
@@ -639,44 +611,40 @@ $\Rightarrow$ SARSA with linear FA is the \textbf{most theoretically grounded} o
 % ============================================================
 \begin{frame}[fragile]{SARSA: Implementation}
 
-\textbf{Function approximation:} $Q(s, a; \mathbf{w}) = \mathbf{w}_a^\top \phi(s)$
+\textbf{Function approx:} $Q(s, a; \mathbf{w}) = \mathbf{w}_a^\top \phi(s)$, \quad $\phi(s) \in \mathbb{R}^{24}$:
 
-\vspace{0.2em}
-Feature vector with polynomial and interaction terms:
-\[
-\phi(s) = \bigl[\;\underbrace{s_{1:8}}_{\text{8 raw}},\;\; \underbrace{t^2, w^2, tw}_{\text{3 poly}},\;\; \underbrace{t \cdot \text{onehot}(y),\; t \cdot \text{onehot}(z)}_{\text{6 time-regime crosses}},\;\; \underbrace{w \cdot \text{onehot}(y),\; w \cdot \text{onehot}(z)}_{\text{6 wealth-regime crosses}},\;\; \underbrace{1}_{\text{bias}}\;\bigr] \in \mathbb{R}^{24}
-\]
+\vspace{0.1em}
+{\small $\phi(s) = \bigl[\underbrace{s_{1:8}}_{\text{8 raw}},\; \underbrace{t^2, w^2, tw}_{\text{3 poly}},\; \underbrace{t{\cdot}\text{oh}(y),\; t{\cdot}\text{oh}(z)}_{\text{6 t-crosses}},\; \underbrace{w{\cdot}\text{oh}(y),\; w{\cdot}\text{oh}(z)}_{\text{6 w-crosses}},\; \underbrace{1}_{\text{bias}}\bigr]$}
 
-Separate $\mathbf{w}_a \in \mathbb{R}^{24}$ for each of 210 actions. Total parameters: $210 \times 24 = 5{,}040$.
+\vspace{0.1em}
+$210 \times 24 = 5{,}040$ parameters total.
 
-\vspace{0.5em}
 \textbf{The SARSA invariant} -- $A'$ in update must equal $A'$ executed:
 
+{\lstset{basicstyle=\ttfamily\tiny, aboveskip=0pt, belowskip=0pt}
 \begin{lstlisting}[language=Python]
 def _expand_features(self, state):
-    t, w = state[0], state[1]; cat = state[2:]   # 6 one-hots
-    poly = [t**2, w**2, t*w]
-    return np.concatenate([state, poly, t*cat, w*cat, [1.0]])  # dim=24
-
+    t, w = state[0], state[1]; cat = state[2:]  # 6 one-hots
+    return np.concatenate([state, [t**2,w**2,t*w], t*cat, w*cat, [1.0]])
 def update(self, state, action, reward, next_state, done):
     phi = self._expand_features(state)
     q_sa = self.weights[action] @ phi
     if not done:
         next_action = self._epsilon_greedy_action(next_state)
-        self._cached_next_action = next_action   # <-- cache A'
+        self._cached_next_action = next_action        # <-- cache A'
         q_next = self.weights[next_action] @ self._expand_features(next_state)
-        td_err = np.clip(reward + q_next - q_sa, -10, 10)  # clip for stability
+        td_err = np.clip(reward + q_next - q_sa, -10, 10)
     else:
         td_err = np.clip(reward - q_sa, -10, 10)
     self.weights[action] += self.alpha * td_err * phi
-
 def select_action(self, state):
     if self._cached_next_action is not None:
-        action = self._cached_next_action        # <-- reuse A'
+        action = self._cached_next_action             # <-- reuse A'
         self._cached_next_action = None
         return action
     return self._epsilon_greedy_action(state)
 \end{lstlisting}
+}
 \end{frame}
 
 \note{
@@ -816,37 +784,21 @@ Glidepath         & 18.1\% & 2.67          & 131.7 \\
 \end{tabular}
 \end{center}
 
-\vspace{0.5em}
-\textbf{Consumption Sharpe ratio:}
-\[
-\text{C-Sharpe} = \frac{\text{mean}(\bar{c}_t)}{\text{std}(\bar{c}_t)}
-\]
-Higher = smoother consumption over time.
+\vspace{0.2em}
+\textbf{C-Sharpe} $= \text{mean}(\bar{c}_t) / \text{std}(\bar{c}_t)$. Higher = smoother consumption.
 \end{column}
 \begin{column}{0.48\textwidth}
-\textbf{Key takeaways:}
-
-\vspace{0.5em}
-All RL agents have \textbf{C-Sharpe $> 10$}, vs.\ $\sim$2.7 for baselines.
-
+All RL agents: \textbf{C-Sharpe $> 10$} vs.\ $\sim$2.7 for baselines.
 $\Rightarrow$ RL consumption is $4$--$10\times$ smoother.
 
-\vspace{0.5em}
-\textbf{Max drawdown} is higher for RL (54--66\%):
-\begin{itemize}
-    \item RL agents consume more $\to$ less savings buffer
-    \item Higher drawdown is an \textit{accepted trade-off} for better utility
-\end{itemize}
-
-\vspace{0.5em}
-\textbf{Linear Q has the highest Min $W_T$} among RL agents (\$33.2):
-\begin{itemize}
-    \item Rich feature expansion $\to$ learns cautious low-wealth behavior
-    \item SARSA (\$24.9) is 2nd; on-policy avoids overconfident actions
-\end{itemize}
+\vspace{0.3em}
+\textbf{Max drawdown} higher for RL (54--66\%): agents consume more $\to$ smaller wealth buffer. Accepted trade-off for better utility.
 
 \vspace{0.3em}
-\textbf{No ruin in any strategy} -- $P(W_T < 10) = 0\%$.
+\textbf{Min $W_T$}: Linear Q leads (\$33.2) via cautious low-wealth behavior; SARSA 2nd (\$24.9). On-policy avoids overconfident actions.
+
+\vspace{0.3em}
+\textbf{No ruin:} $P(W_T < 10) = 0\%$ for all strategies.
 \end{column}
 \end{columns}
 \end{frame}
