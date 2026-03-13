@@ -51,7 +51,6 @@
     \item Phase 3: Reinforcement Learning Approach
     \item Exploration--Exploitation and the $\epsilon$-Greedy Schedule
     \item Four RL Agents: Linear Q, SARSA, DQN, PPO
-    \item Deep Dive: SARSA (On-Policy TD Control)
     \item Results and Comparison
     \item Conclusions
 \end{enumerate}
@@ -348,191 +347,80 @@ L(\theta) = \mathbb{E}\!\left[\min\!\left(\frac{\pi_\theta}{\pi_{\text{old}}} A,
 \textbf{Actor-Critic:} Separate networks -- Actor $\pi_\theta$ (policy, $\sim$122K params) + Critic $V_\phi$ (value/GAE, $\sim$68K). Total: $\sim$191K. Both: 256-256 Tanh, orthogonal init.
 \end{frame}
 % ============================================================
-% SLIDE 12: SARSA Key Idea
+% SLIDE 12: Linear Q
+% ============================================================
+\begin{frame}{Linear Q-Learning}
+
+\textbf{Key idea:} $Q(s,a;\mathbf{w}) = \mathbf{w}_a^\top \phi(s)$ -- linear approximation with Q-learning updates ($210 \times 24 = 5{,}040$ params).
+
+\vspace{0.2em}
+{\small $\phi(s) = \bigl[\underbrace{s_{1:8}}_{\text{8 raw}},\; \underbrace{t^2, w^2, tw}_{\text{3 poly}},\; \underbrace{t{\cdot}\text{oh}(y),\; t{\cdot}\text{oh}(z)}_{\text{6 t-crosses}},\; \underbrace{w{\cdot}\text{oh}(y),\; w{\cdot}\text{oh}(z)}_{\text{6 w-crosses}},\; \underbrace{1}_{\text{bias}}\bigr]$}
+
+\vspace{0.2em}
+\textbf{Off-policy TD update:}
+\[
+\Delta \mathbf{w}_a = \alpha \underbrace{\bigl(R + \gamma \cdot \max_{a'} Q(S', a'; \mathbf{w}) - Q(S, A; \mathbf{w})\bigr)}_{\text{TD error, clipped at } \pm 10} \cdot \phi(S)
+\]
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Advantages:}
+\begin{itemize}
+    \item Tiny and fast ($\sim$18s to train)
+    \item Interpretable weights per action
+    \item Off-policy $\Rightarrow$ aggressive, sample-efficient learning
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Limitations:}
+\begin{itemize}
+    \item Linear -- misses complex nonlinear structure
+    \item Deadly triad: FA + bootstrap + off-policy
+    \item Requires hand-crafted features
+\end{itemize}
+\end{column}
+\end{columns}
+
+\vspace{0.2em}
+\textbf{Result:} $\mathbb{E}[\text{Utility}] = -1.59$ (second best overall, behind DQN at $-1.54$).
+\end{frame}
+% ============================================================
+% SLIDE 13: SARSA
 % ============================================================
 \section{SARSA: On-Policy TD Control}
 
-\begin{frame}{SARSA vs Q-Learning: The Core Difference}
+\begin{frame}{SARSA: On-Policy TD Control}
 
-\textbf{SARSA} = \textbf{S}tate -- \textbf{A}ction -- \textbf{R}eward -- \textbf{S}tate -- \textbf{A}ction
+\textbf{Same as Linear Q} (features, params, $\epsilon$-greedy). \textit{One difference} in the TD target -- use $A'$ \textit{actually taken}:
 
-\vspace{0.2em}
-Both update $Q(S, A)$ using a TD target. The \textit{only} difference:
-
-\vspace{0.2em}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \centering
-\textbf{Q-Learning} (off-policy)\\[0.2em]
+\textbf{Linear Q} (off-policy)\\[0.2em]
 \fbox{$\Delta \mathbf{w} = \alpha \bigl(R + \gamma \cdot \underset{a}{\max}\, Q(S'\!, a) - Q(S,A)\bigr) \nabla Q$}
-
-\vspace{0.2em}
-``What's the \textit{best} I \textit{could} do next?''
-
-\vspace{0.2em}
-\begin{itemize}
-    \item Assumes future actions are optimal
-    \item Can overestimate Q-values
-    \item More sample-efficient
-\end{itemize}
+\vspace{0.15em}
+``What's the \textit{best} I \textit{could} do?''
 \end{column}
 \begin{column}{0.48\textwidth}
 \centering
 \textbf{SARSA} (on-policy)\\[0.2em]
 \fbox{$\Delta \mathbf{w} = \alpha \bigl(R + \gamma \cdot Q(S'\!, A') - Q(S,A)\bigr) \nabla Q$}
-
-\vspace{0.2em}
-``What will I \textit{actually} do next?''
-
-\vspace{0.2em}
-\begin{itemize}
-    \item Uses the action $A'$ actually taken
-    \item Accounts for exploration cost
-    \item More conservative / safer
-\end{itemize}
+\vspace{0.15em}
+``What will I \textit{actually} do?''
 \end{column}
 \end{columns}
 
 \vspace{0.2em}
-\begin{center}
-\begin{tikzpicture}[scale=0.72, every node/.style={font=\small}]
-    \node[draw, rounded corners, fill=blue!15, minimum width=1.1cm, minimum height=0.45cm] (SA) at (0,0) {$S, A$};
-    \node[draw, circle, fill=orange!20, minimum size=0.45cm] (R) at (0,-0.75) {$R$};
-    \node[draw, ellipse, fill=blue!15, minimum width=1.1cm, minimum height=0.45cm] (Sp) at (0,-1.5) {$S'$};
-    \node[draw, rounded corners, fill=green!20, minimum width=1.1cm, minimum height=0.45cm] (Ap) at (0,-2.25) {$A'$};
-    \draw[->, thick] (SA) -- (R);
-    \draw[->, thick] (R) -- (Sp);
-    \draw[->, thick] (Sp) -- (Ap);
-    \node[right, font=\small] at (0.75, 0) {Current state-action};
-    \node[right, font=\small] at (0.75, -0.75) {Observe reward};
-    \node[right, font=\small] at (0.75, -1.5) {Observe next state};
-    \node[right, font=\small, text=green!40!black] at (0.75, -2.25) {Choose $A'$ via $\epsilon$-greedy $\leftarrow$ \textbf{same} $A'$ in update \& execution};
-\end{tikzpicture}
-\end{center}
-\end{frame}
-% ============================================================
-% SLIDE 13: SARSA in the TD Spectrum
-% ============================================================
-\begin{frame}{Where SARSA Fits: The TD Spectrum}
-
-\textbf{Temporal Difference methods} form a spectrum parameterized by $\lambda \in [0, 1]$:
-
-\vspace{0.2em}
-\begin{center}
-\begin{tikzpicture}[scale=0.85]
-    % Axis
-    \draw[->, thick] (0,0) -- (12,0);
-    \node[below, font=\small] at (0, -0.3) {$\lambda = 0$};
-    \node[below, font=\small] at (6, -0.3) {$\lambda \in (0,1)$};
-    \node[below, font=\small] at (12, -0.3) {$\lambda = 1$};
-
-    % Labels
-    \node[above, font=\bfseries, text=blue] at (0, 0.3) {TD(0)};
-    \node[above, font=\small] at (0, 0.8) {1-step bootstrap};
-    \node[above, font=\bfseries, text=purple] at (6, 0.3) {TD($\lambda$)};
-    \node[above, font=\small] at (6, 0.8) {Eligibility traces};
-    \node[above, font=\bfseries, text=red] at (12, 0.3) {Monte Carlo};
-    \node[above, font=\small] at (12, 0.8) {Full return};
-
-    % Markers
-    \fill[blue] (0,0) circle (4pt);
-    \fill[purple] (6,0) circle (4pt);
-    \fill[red] (12,0) circle (4pt);
-
-    % Our SARSA
-    \draw[->, thick, green!50!black] (0, -1.0) -- (0, -0.4);
-    \node[below, font=\bfseries, text=green!50!black] at (0, -1.1) {Our SARSA};
-\end{tikzpicture}
-\end{center}
-
-\vspace{0.2em}
-\begin{columns}[T]
-\begin{column}{0.48\textwidth}
-\textbf{Our SARSA = SARSA(0):}
+\textbf{Why on-policy matters:}
 \begin{itemize}
-    \item Target: $R_{t+1} + \gamma Q(S_{t+1}, A_{t+1})$
-    \item Bootstraps from 1-step lookahead
-    \item \textbf{Biased} (depends on current $Q$)
-    \item \textbf{Low variance} (single transition)
-\end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-\textbf{SARSA($\lambda$) with eligibility traces:}
-\begin{itemize}
-    \item Blends 1-step, 2-step, $\ldots$, full returns
-    \item $\lambda = 0$: pure TD; $\lambda = 1$: Monte Carlo
-    \item Eligibility trace: $\mathbf{e}_t = \gamma\lambda\,\mathbf{e}_{t-1} + \nabla Q$
-    \item We chose $\lambda = 0$ for simplicity
-\end{itemize}
-\end{column}
-\end{columns}
-
-\vspace{0.2em}
-\textbf{Bias-variance tradeoff:} TD(0) has lowest variance but highest bias. MC has zero bias but highest variance. In our 40-step episodes, TD(0) learns faster because variance dominates.
-\end{frame}
-% ============================================================
-% SLIDE 14: SARSA Convergence
-% ============================================================
-\begin{frame}{SARSA: Theoretical Properties}
-
-\textbf{Convergence of Tabular SARSA}:\\[0.3em]
-SARSA converges to $Q^*(s,a)$ under:
-\begin{enumerate}
-    \item \textbf{GLIE} schedule: $\epsilon_k \to 0$, every $(s,a)$ visited infinitely often
-    \item \textbf{Robbins-Monro:} $\sum \alpha_t = \infty$ and $\sum \alpha_t^2 < \infty$
-\end{enumerate}
-
-\vspace{0.3em}
-\textbf{With function approximation} (our case):
-\begin{itemize}
-    \item No convergence guarantee in general (the ``deadly triad'': function approximation + bootstrapping + off-policy / on-policy)
-    \item Linear FA with on-policy updates (SARSA) is the \textbf{safest} combination -- avoids the instability that plagues off-policy + nonlinear FA
-    \item We use a small constant $\alpha = 10^{-5}$ with TD-error clipping at $\pm 10$ -- violates Robbins-Monro but is standard practice
-    \item \textbf{Discount convention:} $\gamma = 1$ in TD update because $\beta^t$ is already baked into the reward $r_t = \beta^t u(c_t)$
+    \item Accounts for exploration cost -- never overestimates Q-values from random actions
+    \item \textbf{Safest} theoretical combination: linear FA + on-policy avoids the deadly triad
+    \item Convergence to $Q^*$ guaranteed (tabular, GLIE + Robbins-Monro); stable in practice
+    \item Key detail: $A'$ from update \textit{must} be cached and reused as the next executed action
 \end{itemize}
 
-\vspace{0.3em}
-$\Rightarrow$ SARSA with linear FA is the \textbf{most theoretically grounded} of our four agents.
-\end{frame}
-% ============================================================
-% SLIDE 15: SARSA Implementation
-% ============================================================
-\begin{frame}[fragile]{SARSA: Implementation}
-
-\textbf{Function approx:} $Q(s, a; \mathbf{w}) = \mathbf{w}_a^\top \phi(s)$, \quad $\phi(s) \in \mathbb{R}^{24}$:
-
-\vspace{0.1em}
-{\small $\phi(s) = \bigl[\underbrace{s_{1:8}}_{\text{8 raw}},\; \underbrace{t^2, w^2, tw}_{\text{3 poly}},\; \underbrace{t{\cdot}\text{oh}(y),\; t{\cdot}\text{oh}(z)}_{\text{6 t-crosses}},\; \underbrace{w{\cdot}\text{oh}(y),\; w{\cdot}\text{oh}(z)}_{\text{6 w-crosses}},\; \underbrace{1}_{\text{bias}}\bigr]$}
-
-\vspace{0.1em}
-$210 \times 24 = 5{,}040$ parameters total.
-
-\textbf{The SARSA invariant} -- $A'$ in update must equal $A'$ executed:
-
-{\lstset{basicstyle=\ttfamily\tiny, aboveskip=0pt, belowskip=0pt}
-\begin{lstlisting}[language=Python]
-def _expand_features(self, state):
-    t, w = state[0], state[1]; cat = state[2:]  # 6 one-hots
-    return np.concatenate([state, [t**2,w**2,t*w], t*cat, w*cat, [1.0]])
-def update(self, state, action, reward, next_state, done):
-    phi = self._expand_features(state)
-    q_sa = self.weights[action] @ phi
-    if not done:
-        next_action = self._epsilon_greedy_action(next_state)
-        self._cached_next_action = next_action        # <-- cache A'
-        q_next = self.weights[next_action] @ self._expand_features(next_state)
-        td_err = np.clip(reward + q_next - q_sa, -10, 10)
-    else:
-        td_err = np.clip(reward - q_sa, -10, 10)
-    self.weights[action] += self.alpha * td_err * phi
-def select_action(self, state):
-    if self._cached_next_action is not None:
-        action = self._cached_next_action             # <-- reuse A'
-        self._cached_next_action = None
-        return action
-    return self._epsilon_greedy_action(state)
-\end{lstlisting}
-}
+\vspace{0.15em}
+$\Rightarrow$ More conservative than Linear Q ($-1.88$ vs $-1.59$), but \textbf{safest policy} (Min $W_T = \$24.9$) and most theoretically grounded.
 \end{frame}
 % ============================================================
 % SLIDE 16: Learning Curves
@@ -865,35 +753,19 @@ Repository: \texttt{github.com/yuxiang-jack-zhang/CME241}
 ``One critical implementation detail: we tried a shared-trunk actor-critic first, where both actor and critic share the first two layers. That failed -- the critic's value loss dominated the gradient and prevented the actor from learning meaningful action distributions. Splitting into completely separate actor and critic networks fixed this. The actor has 122K parameters, the critic 68K, for 191K total -- the most complex of our four agents.''
 \end{frame}
 
-\begin{frame}[allowframebreaks]{Speaker Notes: Slide 12 -- SARSA vs.~Q-Learning}
-\textbf{[Patrick speaks -- 2 min]}\\
-``This is the heart of my contribution. SARSA and Q-learning have exactly the same setup -- same features, same weights, same epsilon-greedy exploration. The only difference is one line in the update equation.''\\[0.5em]
-``Q-learning uses max over all actions of Q at the next state. It's asking: what's the best thing I could possibly do next? This is optimistic -- it ignores the fact that during training, you'll sometimes take random exploratory actions that are bad.''\\[0.5em]
-``SARSA uses Q of s-prime, a-prime, where a-prime is the action you ACTUALLY take next -- including random exploration. So it's asking: given that I'll sometimes explore randomly, what's my realistic expected future value?''\\[0.5em]
-``This makes SARSA more conservative. In a financial context, this is arguably better -- you don't want your policy to assume you'll always act optimally in the future, because in reality you won't. The name SARSA comes from the five quantities used in each update: State, Action, Reward, State, Action.''\\[0.5em]
-``The diagram shows the flow: you're at state S, take action A, observe reward R and next state S-prime, then choose A-prime using epsilon-greedy. The critical requirement is that the A-prime used in the update must be the SAME action you actually execute next.''
-\end{frame}
-
-\begin{frame}[allowframebreaks]{Speaker Notes: Slide 13 -- SARSA in the TD Spectrum}
+\begin{frame}[allowframebreaks]{Speaker Notes: Slide 12 -- Linear Q-Learning}
 \textbf{[Patrick speaks -- 1 min]}\\
-``It's important to understand where our SARSA sits in the bigger picture. TD methods form a spectrum. At one end is TD(0) -- our SARSA -- which bootstraps from a single step. At the other end is Monte Carlo, which waits until the end of the episode to compute the full return.''\\[0.5em]
-``In between is TD-lambda, which uses eligibility traces to blend different-length returns. When lambda is 0, you get pure TD; when lambda is 1, you recover Monte Carlo. We chose lambda equals 0 because our episodes are 40 steps long, and with that horizon, the variance of Monte Carlo returns is very high. TD(0) trades some bias for much lower variance, which means faster and more stable learning in practice.''\\[0.5em]
-``If we wanted to improve further, we could try intermediate lambda values -- but for this project, SARSA(0) already performs well.''
+``Linear Q-learning is the simplest of our four agents. We approximate the Q-function as a linear combination of 24 hand-crafted features -- the raw 8-dim state plus polynomial terms and cross-products between time, wealth, income, and regime one-hots. These interaction terms let the linear model capture state-dependent behavior. With 210 actions and 24 features, that's only 5,040 parameters total.''\\[0.5em]
+``The update rule is standard Q-learning: observe a transition, compute the TD error as the Bellman residual using the greedy next action, and take a gradient step. Because it's off-policy -- it bootstraps from the max Q-value regardless of what the agent will actually do -- it learns more aggressively than SARSA. This is why Linear Q achieves better utility: -1.59 versus SARSA's -1.88.''\\[0.5em]
+``The trade-off is theoretical: off-policy + function approximation + bootstrapping is the deadly triad, which can cause divergence. In practice it's stable here because the linear model is well-behaved and we clip TD errors at plus or minus 10.''
 \end{frame}
 
-\begin{frame}[allowframebreaks]{Speaker Notes: Slide 14 -- SARSA: Theoretical Guarantees}
-\textbf{[Patrick speaks -- 1 min]}\\
-``There is a convergence theorem for tabular SARSA. Under two conditions -- GLIE exploration and Robbins-Monro step sizes -- SARSA converges to the true optimal Q function.''\\[0.5em]
-``With function approximation, things are trickier. The deadly triad -- function approximation plus bootstrapping plus off-policy learning -- can cause divergence. SARSA with linear function approximation is the safest combination because it's on-policy and linear. This avoids the instability that DQN has to work around with its replay buffer and target network.''\\[0.5em]
-``One subtlety on discounting: we use gamma equals 1 in the TD update, not 0.96. That's because beta to the t is already multiplied into each reward. So the reward at time t is already discounted by 0.96 to the t. If we also used gamma equals 0.96 in the update, we'd be double-discounting. The TD update with gamma equals 1 correctly implements the discounted CRRA objective.''\\[0.5em]
-``We use a constant learning rate alpha equals 10 to the minus 5. This technically violates Robbins-Monro, but is standard practice. The TD-error clipping at plus or minus 10 provides additional stability when the large CRRA penalties from zero consumption appear early in training.''
-\end{frame}
-
-\begin{frame}[allowframebreaks]{Speaker Notes: Slide 15 -- SARSA Implementation}
+\begin{frame}[allowframebreaks]{Speaker Notes: Slide 13 -- SARSA: On-Policy TD Control}
 \textbf{[Patrick speaks -- 1.5 min]}\\
-``Here's the implementation. The feature vector phi has 24 dimensions: 8 raw state values, 3 polynomial terms, 6 time-cross terms (t times each income and regime one-hot), 6 wealth-cross terms, and a bias. These interaction terms are crucial -- they let the linear model learn different policies for different regimes and income states. For example, the t times z-bear cross term lets the model weight time differently when in a bear market. Without these crosses, the linear model can't represent state-dependent behavior.''\\[0.5em]
-``With 210 actions and 24 features, we have 5,040 total parameters -- still tiny compared to DQN's 122K and PPO's 191K.''\\[0.5em]
-``Two implementation details: First, the TD-error clipping at plus or minus 10 -- early in training, CRRA utility at near-zero consumption gives huge negative rewards that can blow up the weights. Clipping keeps training stable. Second, the caching mechanism for the SARSA invariant: the update picks A-prime and caches it, and the next select-action returns that cached action. Without this, you'd sample a different A-prime for the next step than you used in the TD target, silently breaking on-policy consistency.''
+``SARSA has exactly the same architecture as Linear Q -- same features, same 5,040 parameters, same epsilon-greedy schedule. The only difference is one word in the update: instead of using max over Q at the next state, we use Q of S-prime, A-prime, where A-prime is the action the agent will actually take next, including random exploration.''\\[0.5em]
+``This makes SARSA on-policy. It's asking: given that I'll sometimes explore randomly, what's my realistic expected future value? Q-learning is optimistic -- it assumes future actions are always greedy. SARSA is honest about the cost of exploration.''\\[0.5em]
+``The practical consequence: SARSA is more conservative. In a financial setting, this is arguably desirable -- you don't want a policy calibrated assuming you'll always act optimally. The result: utility of -1.88 versus -1.59 for Linear Q, but SARSA has the best minimum terminal wealth at 24.9 -- it never assumes it will make optimal decisions in bad states.''\\[0.5em]
+``The theoretical consequence: linear FA plus on-policy avoids the deadly triad, making SARSA the most theoretically grounded of our four agents. Convergence to optimal Q is guaranteed in the tabular case under GLIE and Robbins-Monro step sizes. The key implementation detail is caching A-prime during the update so the same action is actually executed next step -- without this you silently break on-policy consistency.''
 \end{frame}
 
 \begin{frame}[allowframebreaks]{Speaker Notes: Slide 16 -- Training Convergence}
