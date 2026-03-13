@@ -29,7 +29,7 @@
 
 \title{Lifecycle Portfolio Allocation\\via Reinforcement Learning}
 \subtitle{CME 241 -- RL for Stochastic Control Problems in Finance}
-\author{Patrick Flanagan \and Jack Zhang \and Jeff}
+\author{Patrick Flanagan \and Jack Zhang \and Jeffrey Xue}
 \date{Winter 2026}
 
 \begin{document}
@@ -43,7 +43,7 @@
 
 \note{
 \textbf{[Patrick speaks -- 15 sec]}\\
-``Hi everyone, we're Patrick, Jack, and Jeff. Our project applies reinforcement learning to the lifecycle portfolio allocation problem -- basically, how should someone invest and consume over their working life to maximize lifetime happiness. We'll walk through the problem setup, our exact DP solution, why it breaks down, and how four different RL algorithms handle the harder version.''
+``Hi everyone, we're Patrick, Jack, and Jeffrey. Our project applies reinforcement learning to the lifecycle portfolio allocation problem -- basically, how should someone invest and consume over their working life to maximize lifetime happiness. We'll walk through the problem setup, our exact DP solution, why it breaks down, and how four different RL algorithms handle the harder version.''
 }
 
 % ============================================================
@@ -184,7 +184,7 @@ P_z = \begin{pmatrix} 0.50 & 0.40 & 0.10 \\ 0.20 & 0.60 & 0.20 \\ 0.10 & 0.40 & 
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 1 min]}\\
+\textbf{[Jeffrey speaks -- 1 min]}\\
 ``Here's how the world evolves. Your wealth next period equals your savings times your portfolio return, plus whatever income you earn. Both income and the market regime follow Markov chains -- they're persistent but random. If you're in a bear market, there's a 50\% chance you stay in a bear market next year.''\\[0.5em]
 ``Asset returns depend on the regime. In a bear market, stocks can lose 18\% in a bad scenario. In a bull market, stocks can gain 25\%. Bonds and cash are much more stable. This regime-dependence is what makes the problem interesting -- a smart agent should invest differently in bull versus bear markets.''
 }
@@ -289,7 +289,7 @@ $\Rightarrow$ \textbf{Reinforcement Learning}
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 1 min]}\\
+\textbf{[Jeffrey speaks -- 1 min]}\\
 ``Here's why we need RL. We just added one more income state, one more regime, made the wealth continuous, and extended the horizon from 25 to 40 years. The DP table blows up by 119x to nearly 240 million cells. And this is still only 3 assets! If we wanted 5 or 10 asset classes, it would be completely infeasible.''\\[0.5em]
 ``The solution is function approximation. Instead of storing a value for every single state, we learn a function Q of s, a parameterized by weights w. The agent learns this function by interacting with the environment -- trial and error over thousands of simulated lifetimes. This is reinforcement learning.''
 }
@@ -683,7 +683,7 @@ DQN: $\sim$23 min, PPO: $\sim$2 min
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 1 min]}\\
+\textbf{[Jeffrey speaks -- 1 min]}\\
 ``Here are the learning curves for all four agents. The y-axis is the 100-episode running average of episode returns. All four agents start with very negative returns because epsilon equals 1 means fully random actions -- many of which hit the zero-consumption penalty.''\\[0.5em]
 ``The two linear agents (Linear Q and SARSA) converge quickly and similarly. SARSA is slightly slower because on-policy updates can only learn from the current behavior policy, not from the best possible greedy action. DQN is slowest to start because it needs to fill a 500K replay buffer before learning kicks in, but eventually produces the best evaluation utility. PPO is interesting -- it often shows the best training return because entropy regularization helps it find high-consumption strategies, but evaluation utility is slightly lower.''\\[0.5em]
 ``Training times: the linear agents take 15-18 seconds for 15K episodes -- very fast. DQN takes about 23 minutes because of the neural network forward/backward passes plus replay sampling. PPO is about 2 minutes. For practical deployment, SARSA and Linear Q are the clear winners on compute efficiency.''
@@ -712,7 +712,7 @@ DQN: $\sim$23 min, PPO: $\sim$2 min
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 1 min]}\\
+\textbf{[Jeffrey speaks -- 1 min]}\\
 ``These policy heatmaps show what each agent actually does at different combinations of time and wealth. The x-axis is the year, the y-axis is wealth, and the color represents the stock allocation the agent chooses.''\\[0.5em]
 ``Both SARSA and DQN learn the same qualitative pattern that we saw in Phase 2's exact DP solution: invest heavily in stocks when young and gradually shift to bonds as retirement approaches. This is the classic glidepath shape, but unlike a fixed glidepath, the RL agents also condition on wealth -- they invest more aggressively when wealth is low, because the marginal utility gain from risky growth is higher.''\\[0.5em]
 ``The DQN policy is smoother because the neural network naturally interpolates, while SARSA's linear approximation produces sharper boundaries.''
@@ -754,7 +754,7 @@ Glidepath 80$\to$20 & $-2.63$         & 489   & 474   & 140   & 320   & 697 \\
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 1.5 min]}\\
+\textbf{[Jeffrey speaks -- 1.5 min]}\\
 ``Here's the full comparison across all 7 strategies, evaluated on 2,000 Monte Carlo simulated lifetimes with no exploration. The headline: every RL agent beats every baseline on expected utility.''\\[0.5em]
 ``DQN achieves the best utility at negative 1.54, followed by Linear Q at negative 1.59. These are the off-policy methods. The on-policy methods, SARSA and PPO, are slightly more conservative at negative 1.88 and negative 1.95. All baselines cluster at negative 2.63 to 2.75.''\\[0.5em]
 ``The paradox: RL agents have much lower terminal wealth -- around 90-115 versus 490 for static 60/40. But CRRA utility with gamma equals 2 rewards smooth lifetime consumption, not terminal wealth. The RL agents learned this from scratch -- consume steadily, invest conservatively, and you get more utility than hoarding wealth. The baselines use a fixed 4\% withdrawal rate and mostly just invest, accumulating large volatile wealth but getting less lifetime utility.''\\[0.5em]
@@ -804,7 +804,7 @@ $\Rightarrow$ RL consumption is $4$--$10\times$ smoother.
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 1 min]}\\
+\textbf{[Jeffrey speaks -- 1 min]}\\
 ``The risk metrics reinforce the main finding. All RL agents achieve consumption Sharpe ratios above 10 -- between 4 and 10 times higher than any baseline. DQN leads at 26.53. This means the RL agents deliver much smoother consumption streams over 40 years.''\\[0.5em]
 ``The trade-off is higher max drawdown -- 54 to 66 percent for RL versus 14 to 24 percent for baselines. This makes sense: more consumption leaves a smaller wealth buffer. Importantly, this is a deliberate choice the agent made -- higher consumption smoothness is worth the drawdown risk under CRRA utility.''\\[0.5em]
 ``Linear Q has the best minimum terminal wealth at 33.2 -- it learned conservative behavior when wealth is low, which protects against tail risks. SARSA is second at 24.9. Interestingly, DQN has the lowest min at 18.3 despite the best utility -- it takes more risk in exchange for higher expected consumption. No strategy hits ruin.''
@@ -831,12 +831,47 @@ $\Rightarrow$ RL consumption is $4$--$10\times$ smoother.
 \end{frame}
 
 \note{
-\textbf{[Jeff speaks -- 45 sec]}\\
+\textbf{[Jeffrey speaks -- 45 sec]}\\
 ``These plots show the story visually. On the left, wealth trajectories: baselines grow to 400-500 because they never consume. RL agents stay around 100-150 because they extract consumption along the way. On the right, terminal wealth distributions: baselines have wide spreads, RL agents have tight, concentrated distributions. The RL agents deliberately traded terminal wealth for lifetime consumption smoothness.''
 }
 
 % ============================================================
-% SLIDE 21: Agent Comparison Summary
+% SLIDE 21: Utility Distributions
+% ============================================================
+\begin{frame}{Utility Distributions: RL vs Baselines}
+\begin{columns}[T]
+\begin{column}{0.58\textwidth}
+\centering
+\includegraphics[width=\textwidth]{utility_distributions.png}
+\end{column}
+\begin{column}{0.40\textwidth}
+\textbf{This is the objective.}
+
+\vspace{0.3em}
+RL agents (DQN, PPO, Linear Q, SARSA) are shifted \textbf{right} -- higher utility.
+
+\vspace{0.3em}
+Baselines (60/40, Equal, Glidepath) cluster left around $-2.5$ to $-3$.
+
+\vspace{0.3em}
+\textbf{Key observations:}
+\begin{itemize}
+    \item DQN has the \textit{tightest} distribution near $-1.5$
+    \item Baselines have \textit{long left tails} -- more downside risk in utility space
+    \item RL agents' right shift = higher \textit{and} more consistent utility
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\note{
+\textbf{[Jeffrey speaks -- 45 sec]}\\
+``This histogram is the single most important plot -- it shows the distribution of total discounted CRRA utility across 2,000 simulated lifetimes. Utility is the actual objective we're optimizing.''\\[0.5em]
+``The RL agents are clearly shifted to the right -- higher utility. DQN and PPO concentrate tightly near negative 1.5, while baselines spread around negative 2.5 to negative 3 with long left tails. Those left tails are bad outcomes where baselines couldn't adapt to poor market conditions. The RL agents avoid these because they learned state-dependent policies.''
+}
+
+% ============================================================
+% SLIDE 22: Agent Comparison Summary
 % ============================================================
 \section{Agent Comparison}
 
