@@ -83,6 +83,7 @@ class DQNAgent(BaseAgent):
         self.target_net.load_state_dict(self.q_net.state_dict())
 
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=lr)
+        self.scheduler = None  # set externally after n_episodes is known
         self.loss_fn = nn.SmoothL1Loss()
         self.buffer = ReplayBuffer(buffer_size)
         self.update_count = 0
@@ -119,7 +120,9 @@ class DQNAgent(BaseAgent):
         q_vals = self.q_net(s).gather(1, a.unsqueeze(1)).squeeze(1)
 
         with torch.no_grad():
-            q_next = self.target_net(ns).max(dim=1)[0]
+            # Double DQN: select best action with online net, evaluate with target net
+            best_actions = self.q_net(ns).argmax(dim=1, keepdim=True)
+            q_next = self.target_net(ns).gather(1, best_actions).squeeze(1)
             target = r + self.gamma * (1 - d) * q_next
 
         loss = self.loss_fn(q_vals, target)
@@ -135,7 +138,14 @@ class DQNAgent(BaseAgent):
 
         return loss.item()
 
+    def init_scheduler(self, n_episodes):
+        """Initialize cosine LR scheduler."""
+        self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, T_max=n_episodes, eta_min=1e-5)
+
     def decay_epsilon(self, episode):
-        """Linear epsilon decay."""
+        """Linear epsilon decay + LR schedule step."""
         frac = min(episode / self.eps_decay, 1.0)
         self.epsilon = self.eps_start + frac * (self.eps_end - self.eps_start)
+        if self.scheduler is not None:
+            self.scheduler.step()

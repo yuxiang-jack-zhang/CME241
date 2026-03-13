@@ -125,6 +125,10 @@ class PPOAgent(BaseAgent):
         self.eps_end = epsilon_end
         self.eps_decay = epsilon_decay_episodes
 
+        # Entropy decay
+        self.ent_coef_start = ent_coef
+        self.ent_coef_end = max(ent_coef * 0.2, 0.01)  # decay to 20% or 0.01
+
         self.net = ActorCritic(state_dim, n_actions, hidden).to(device)
         self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
         self.buffer = RolloutBuffer()
@@ -229,7 +233,15 @@ class PPOAgent(BaseAgent):
                 surr2 = torch.clamp(ratio, 1.0 - self.clip_range,
                                     1.0 + self.clip_range) * mb_advantages
                 policy_loss = -torch.min(surr1, surr2).mean()
-                value_loss = nn.functional.mse_loss(values, mb_returns)
+
+                # Value function clipping
+                mb_old_values = old_values[idx]
+                v_clipped = mb_old_values + torch.clamp(
+                    values - mb_old_values, -self.clip_range, self.clip_range)
+                vf_loss1 = (values - mb_returns) ** 2
+                vf_loss2 = (v_clipped - mb_returns) ** 2
+                value_loss = 0.5 * torch.max(vf_loss1, vf_loss2).mean()
+
                 entropy_loss = -entropy.mean()
 
                 loss = policy_loss + self.vf_coef * value_loss + self.ent_coef * entropy_loss
@@ -246,6 +258,8 @@ class PPOAgent(BaseAgent):
         return total_loss / max(n_updates, 1)
 
     def decay_epsilon(self, episode):
-        """Linear epsilon decay."""
+        """Linear epsilon decay + entropy coefficient decay."""
         frac = min(episode / self.eps_decay, 1.0)
         self.epsilon = self.eps_start + frac * (self.eps_end - self.eps_start)
+        # Decay entropy coefficient linearly
+        self.ent_coef = self.ent_coef_start + frac * (self.ent_coef_end - self.ent_coef_start)
