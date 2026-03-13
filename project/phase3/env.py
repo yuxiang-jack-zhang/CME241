@@ -61,10 +61,9 @@ class PortfolioEnv:
         savings = self.W - consumption
 
         # Immediate reward (discounted CRRA utility of consumption)
-        if consumption > 1e-10:
-            reward = BETA ** self.t * crra_scalar(consumption)
-        else:
-            reward = 0.0
+        # Zero consumption gets a large negative penalty from crra_scalar,
+        # matching Phase 2 DP where u(0) = -1e18 blocked infeasible choices.
+        reward = BETA ** self.t * crra_scalar(consumption)
 
         # Transition: sample return scenario
         scen = RETURN_SCENARIOS[self.z]
