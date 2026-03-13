@@ -12,8 +12,8 @@ All items from plan.md implemented and run successfully.
 - `train.py`: Integrated — normalizes rewards for `uses_replay` agents (DQN, PPO), raw rewards for Linear Q/SARSA
 
 ### 1: All Models in All Plots + SARSA Episodes
-- `run.py`: SARSA training bumped 4k → 10k episodes
-- `run.py`: Regime comparison plots now generated for all 4 agents
+- `run.py`: SARSA now trains for 15k episodes (same as other agents)
+- `run.py`: Regime comparison plots generated for all 4 agents
 - `visualize.py`: Extended COLORS list to 9 entries for 8 strategies
 
 ### 2: Auto-Generated report.md
@@ -26,40 +26,37 @@ All items from plan.md implemented and run successfully.
 
 ### 3C/3D: DQN Tuning
 - `run.py`: buffer_size 100k → 500k, target_update_freq 200 → 1000
-- `agents/dqn.py`: Added `init_scheduler()` with CosineAnnealingLR (3e-4 → 1e-5), stepped per episode in `decay_epsilon()`
+- `agents/dqn.py`: Added `init_scheduler()` with CosineAnnealingLR (3e-4 → 1e-5), stepped per episode
 
 ### 4B/4C: PPO Tuning
 - `agents/ppo.py`: Value function clipping (clipped value loss with same clip_range as policy)
-- `agents/ppo.py`: Entropy coefficient decays linearly from ent_coef → max(ent_coef*0.2, 0.01) over eps_decay episodes
+- `agents/ppo.py`: Entropy coefficient decays linearly from ent_coef → max(ent_coef*0.2, 0.01)
 
 ### 6: Finer Consumption Grid
-- `config.py`: CONS_FRACS changed to [0%, 1%, 2%, 3%, 4%, 5%, 8%, 12%, 16%, 20%] — 10 levels, finer at low end
-- N_ACTIONS: 231 → 210
+- `config.py`: CONS_FRACS changed to [0%, 1%, 2%, 3%, 4%, 5%, 8%, 12%, 16%, 20%] — N_ACTIONS: 231 → 210
 
 ### 7: Certainty Equivalents + Per-Regime Evaluation
-- `visualize.py`: CE column added to `print_comparison_table()` and `generate_report()`
-- `simulate.py`: `simulate_strategy()` accepts optional `z0` parameter for fixed initial regime
-- `run.py`: Per-regime evaluation loop (Bear/Normal/Bull) added after main simulation
+- `visualize.py`: CE column in `print_comparison_table()` and `generate_report()`
+- `simulate.py`: `simulate_strategy()` accepts optional `z0` for fixed initial regime
+- `run.py`: Per-regime evaluation loop (Bear/Normal/Bull) after main simulation
 
 ## Bugs Found During Review (Fixed)
-1. **DP double-discounting**: `dp_baseline.py` had β^t in per-step reward AND β·V in Bellman recursion — removed β^t
-2. **RewardNormalizer.var init**: Was 1.0 (biased), fixed to 0.0 with warmup guard (skip normalization for <2 samples, use count-1 for unbiased variance)
-3. **Dead code in train.py**: Removed unused `use_replay` variable and unreachable PPO branch
-4. **Stale comment**: config.py said `# 231` after grid change to 210
+1. DP double-discounting: removed β^t from per-step DP reward (Bellman recursion already handles discounting)
+2. RewardNormalizer.var init: 1.0 → 0.0 with warmup guard and unbiased variance (count-1)
+3. Dead code in train.py: removed unused variable and unreachable branch
+4. Stale comment: config.py `# 231` → `# 210`
 
-## Run Results Summary
-
-Training completed in ~25 minutes total. Key results (sorted by E[Utility]):
+## Final Run Results (Run 2)
 
 | Strategy | E[Utility] | CE | E[W_T] |
 |----------|-----------|-----|--------|
 | DP Optimal | -1.46 | 0.69 | 77.3 |
-| Linear Q | -2.38 | 0.42 | 162.2 |
+| **Linear Q** | **-2.11** | **0.47** | 98.9 |
 | Static 60/40 | -2.63 | 0.38 | 487.3 |
 | Glidepath | -2.63 | 0.38 | 489.1 |
 | Equal 1/3 | -2.75 | 0.36 | 407.8 |
-| SARSA | -3.49 | 0.29 | 197.1 |
-| DQN | -4.04 | 0.25 | 220.4 |
-| PPO | -4.38 | 0.23 | 330.8 |
+| SARSA | -3.24 | 0.31 | 119.4 |
+| DQN | -3.29 | 0.30 | 133.1 |
+| PPO | -4.25 | 0.24 | 217.8 |
 
-Linear Q outperforms all baselines. DQN/PPO improved from degenerate (uniform) policies but still underperform baselines. Full analysis in report.md.
+Linear Q beats all baselines (CE=0.47 vs 0.38). DQN/PPO no longer degenerate but still underperform baselines. Full analysis in report.md.
