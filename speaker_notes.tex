@@ -82,7 +82,7 @@ CME 241 -- Winter 2026}
 ``But this only works because we kept the problem small. What happens when we make it more realistic?''
 
 % ============================================================
-\section{Slide 7 -- Curse of Dimensionality}
+\section{Slide 7 -- The Curse of Dimensionality}
 % ============================================================
 
 \textbf{[Jeffrey speaks -- $\sim$1 min]}
@@ -95,7 +95,7 @@ CME 241 -- Winter 2026}
 \section{Slide 8 -- Phase 3: RL Architecture}
 % ============================================================
 
-\textbf{[Patrick speaks -- $\sim$1.5 min]}
+\textbf{[Patrick speaks -- $\sim$2 min]}
 
 ``For Phase 3, we built a Gym-like environment where agents can simulate lifetimes. The state gets featurized into 8 numbers: normalized time, log-normalized wealth, and one-hot vectors for income and regime. This is what the agents see.''
 
@@ -103,22 +103,36 @@ CME 241 -- Winter 2026}
 
 ``The key distinction is on-policy versus off-policy. Linear Q and DQN are off-policy -- they bootstrap from the greedy action regardless of what they actually did. SARSA and PPO are on-policy -- they learn about the policy they're actually executing. This difference shows up empirically: Linear Q slightly outperforms SARSA because off-policy updates are more aggressive.''
 
-``Also note: PPO is primarily entropy-regularized, not epsilon-greedy. It starts with $\epsilon = 0.3$ to encourage initial exploration but relies on the entropy bonus in its objective for sustained exploration. DQN and the linear agents use full epsilon-greedy from 1.0 down to 0.05.''
+``On exploration: all agents use $\epsilon$-greedy. We start at $\epsilon = 1$ (fully random), decaying linearly to 0.05 over 8,000 episodes for the linear agents and DQN. PPO decays from 0.3 to 0 over 5,000 episodes because it primarily relies on entropy regularization. This is a GLIE schedule -- Greedy in the Limit with Infinite Exploration -- which is a necessary condition for SARSA convergence.''
 
 % ============================================================
-\section{Slide 9 -- Exploration vs.\ Exploitation}
+\section{Slide 9 -- Linear Q-Learning}
 % ============================================================
 
 \textbf{[Patrick speaks -- $\sim$1 min]}
 
-``Before diving into the algorithms, let's talk about exploration versus exploitation -- one of the central ideas in RL. The agent faces a dilemma: should it take the action it thinks is best, or try something different to potentially discover something better?''
+``Linear Q-learning is the simplest of our four agents. We approximate the Q-function as a linear combination of 24 hand-crafted features -- the raw 8-dim state plus polynomial terms and cross-products between time, wealth, income, and regime one-hots. These interaction terms let the linear model capture state-dependent behavior. With 210 actions and 24 features, that's only 5,040 parameters total.''
 
-``We use $\epsilon$-greedy: with probability $\epsilon$, take a random action; otherwise take the greedy action. The key is the schedule. We start at $\epsilon = 1$, meaning fully random. This ensures the agent sees a wide variety of states and actions early on. We decay linearly to 0.05 over 8,000 episodes for Linear Q, SARSA, and DQN -- so by episode 8,000 the agents are mostly exploiting. PPO decays from 0.3 to 0 over 5,000 episodes because it's primarily entropy-regularized.''
+``The update rule is standard Q-learning: observe a transition, compute the TD error as the Bellman residual using the greedy next action, and take a gradient step. Because it's off-policy -- it bootstraps from the max Q-value regardless of what the agent will actually do -- it learns more aggressively than SARSA. This is why Linear Q achieves better utility: $-1.59$ versus SARSA's $-1.88$.''
 
-``This is a GLIE schedule -- Greedy in the Limit with Infinite Exploration. It's a necessary condition for the SARSA convergence theorem. The financial analogy: early training is like a junior analyst trying wild strategies to see what works; late training is a seasoned manager making small, informed adjustments.''
+``The trade-off is theoretical: off-policy + function approximation + bootstrapping is the deadly triad, which can cause divergence. In practice it's stable here because the linear model is well-behaved and we clip TD errors at $\pm 10$.''
 
 % ============================================================
-\section{Slide 10 -- DQN: Deep Q-Network}
+\section{Slide 10 -- SARSA: On-Policy TD Control}
+% ============================================================
+
+\textbf{[Patrick speaks -- $\sim$1.5 min]}
+
+``SARSA has exactly the same architecture as Linear Q -- same features, same 5,040 parameters, same epsilon-greedy schedule. The only difference is one word in the update: instead of using $\max$ over Q at the next state, we use $Q(S', A')$, where $A'$ is the action the agent will actually take next, including random exploration.''
+
+``This makes SARSA on-policy. It's asking: given that I'll sometimes explore randomly, what's my realistic expected future value? Q-learning is optimistic -- it assumes future actions are always greedy. SARSA is honest about the cost of exploration.''
+
+``The practical consequence: SARSA is more conservative. In a financial setting, this is arguably desirable -- you don't want a policy calibrated assuming you'll always act optimally. The result: utility of $-1.88$ versus $-1.59$ for Linear Q, but SARSA has the best minimum terminal wealth -- it never assumes it will make optimal decisions in bad states.''
+
+``The theoretical consequence: linear FA plus on-policy avoids the deadly triad, making SARSA the most theoretically grounded of our four agents. Convergence to optimal $Q^*$ is guaranteed in the tabular case under GLIE and Robbins-Monro step sizes. The key implementation detail is caching $A'$ during the update so the same action is actually executed next step -- without this you silently break on-policy consistency.''
+
+% ============================================================
+\section{Slide 11 -- DQN: Deep Q-Network}
 % ============================================================
 
 \textbf{[Jack speaks -- $\sim$1.5 min]}
@@ -131,10 +145,10 @@ CME 241 -- Winter 2026}
 
 ``We use a \textbf{dueling architecture}. The shared trunk takes 8 inputs through two 256-unit Tanh layers. Then it splits into two heads: a value stream that estimates how good state $s$ is overall, and an advantage stream that estimates how much better action $a$ is compared to the average. The final Q-value is $V + A - \bar{A}$ -- this stabilizes training by separating state value from action advantage.''
 
-``We also use Double DQN: the online network selects the best action, but the target network evaluates it. This reduces the overestimation bias that plain DQN has. Total parameters: about 122K. The target network is updated every 1,000 steps with a 500K replay buffer.''
+``We also use Double DQN: the online network selects the best action, but the target network evaluates it. This reduces the overestimation bias that plain DQN has. Total parameters: about 122K.''
 
 % ============================================================
-\section{Slide 11 -- PPO: Proximal Policy Optimization}
+\section{Slide 12 -- PPO: Proximal Policy Optimization}
 % ============================================================
 
 \textbf{[Jack speaks -- $\sim$1.5 min]}
@@ -148,57 +162,19 @@ CME 241 -- Winter 2026}
 ``One critical implementation detail: we tried a shared-trunk actor-critic first, where both actor and critic share the first two layers. That failed -- the critic's value loss dominated the gradient and prevented the actor from learning meaningful action distributions. Splitting into completely separate actor and critic networks fixed this. The actor has 122K parameters, the critic 68K, for 191K total -- the most complex of our four agents.''
 
 % ============================================================
-\section{Slide 12 -- Linear Q-Learning}
-% ============================================================
-
-\textbf{[Patrick speaks -- $\sim$1 min]}
-
-``Linear Q-learning is the simplest of our four agents. We approximate the Q-function as a linear combination of 24 hand-crafted features -- the raw 8-dim state plus polynomial terms and cross-products between time, wealth, income, and regime one-hots. These interaction terms let the linear model capture state-dependent behavior. With 210 actions and 24 features, that's only 5,040 parameters total.''
-
-``The update rule is standard Q-learning: observe a transition, compute the TD error as the Bellman residual using the greedy next action, and take a gradient step. Because it's off-policy -- it bootstraps from the max Q-value regardless of what the agent will actually do -- it learns more aggressively than SARSA. This is why Linear Q achieves better utility: $-1.59$ versus SARSA's $-1.88$.''
-
-``The trade-off is theoretical: off-policy + function approximation + bootstrapping is the deadly triad, which can cause divergence. In practice it's stable here because the linear model is well-behaved and we clip TD errors at $\pm 10$.''
-
-% ============================================================
-\section{Slide 13 -- SARSA: On-Policy TD Control}
-% ============================================================
-
-\textbf{[Patrick speaks -- $\sim$1.5 min]}
-
-``SARSA has exactly the same architecture as Linear Q -- same features, same 5,040 parameters, same epsilon-greedy schedule. The only difference is one word in the update: instead of using $\max$ over Q at the next state, we use $Q(S', A')$, where $A'$ is the action the agent will actually take next, including random exploration.''
-
-``This makes SARSA on-policy. It's asking: given that I'll sometimes explore randomly, what's my realistic expected future value? Q-learning is optimistic -- it assumes future actions are always greedy. SARSA is honest about the cost of exploration.''
-
-``The practical consequence: SARSA is more conservative. In a financial setting, this is arguably desirable -- you don't want a policy calibrated assuming you'll always act optimally. The result: utility of $-1.88$ versus $-1.59$ for Linear Q, but SARSA has the best minimum terminal wealth at \$24.9 -- it never assumes it will make optimal decisions in bad states.''
-
-``The theoretical consequence: linear FA plus on-policy avoids the deadly triad, making SARSA the most theoretically grounded of our four agents. Convergence to optimal $Q^*$ is guaranteed in the tabular case under GLIE and Robbins-Monro step sizes. The key implementation detail is caching $A'$ during the update so the same action is actually executed next step -- without this you silently break on-policy consistency.''
-
-% ============================================================
-\section{Slide 14 -- Training Convergence}
+\section{Slide 13 -- Training Convergence}
 % ============================================================
 
 \textbf{[Jeffrey speaks -- $\sim$1 min]}
 
 ``Here are the learning curves for all four agents. The y-axis is the 100-episode running average of episode returns. All four agents start with very negative returns because $\epsilon = 1$ means fully random actions -- many of which hit the zero-consumption penalty.''
 
-``The two linear agents (Linear Q and SARSA) converge quickly and similarly. SARSA is slightly slower because on-policy updates can only learn from the current behavior policy, not from the best possible greedy action. DQN is slowest to start because it needs to fill a 500K replay buffer before learning kicks in, but eventually produces the best evaluation utility. PPO is interesting -- it often shows the best training return because entropy regularization helps it find high-consumption strategies, but evaluation utility is slightly lower.''
+``The two linear agents (Linear Q and SARSA) converge quickly and similarly, within a few thousand episodes. DQN is slowest to start because it needs to fill a 500K replay buffer before learning kicks in, but eventually produces the best evaluation utility. PPO is interesting -- it often shows the best training return because entropy regularization helps it find high-consumption strategies, but evaluation utility is slightly lower.''
 
 ``Training times: the linear agents take 15--18 seconds for 15K episodes -- very fast. DQN takes about 23 minutes because of the neural network forward/backward passes plus replay sampling. PPO is about 2 minutes. For practical deployment, SARSA and Linear Q are the clear winners on compute efficiency.''
 
 % ============================================================
-\section{Slide 15 -- Learned Policy Heatmaps}
-% ============================================================
-
-\textbf{[Jeffrey speaks -- $\sim$1 min]}
-
-``These policy heatmaps show what each agent actually does at different combinations of time and wealth. The x-axis is the year, the y-axis is wealth, and the color represents the stock allocation the agent chooses.''
-
-``Both SARSA and DQN learn the same qualitative pattern that we saw in Phase 2's exact DP solution: invest heavily in stocks when young and gradually shift to bonds as retirement approaches. This is the classic glidepath shape, but unlike a fixed glidepath, the RL agents also condition on wealth -- they invest more aggressively when wealth is low, because the marginal utility gain from risky growth is higher.''
-
-``The DQN policy is smoother because the neural network naturally interpolates, while SARSA's linear approximation produces sharper boundaries.''
-
-% ============================================================
-\section{Slide 16 -- Monte Carlo Comparison}
+\section{Slide 14 -- Monte Carlo Evaluation}
 % ============================================================
 
 \textbf{[Jeffrey speaks -- $\sim$1.5 min]}
@@ -207,56 +183,48 @@ CME 241 -- Winter 2026}
 
 ``DQN achieves the best utility at $-1.54$, followed by Linear Q at $-1.59$. These are the off-policy methods. The on-policy methods, SARSA and PPO, are slightly more conservative at $-1.88$ and $-1.95$. All baselines cluster at $-2.63$ to $-2.75$.''
 
-``The paradox: RL agents have much lower terminal wealth -- around \$90--115 versus \$490 for static 60/40. But CRRA utility with $\gamma = 2$ rewards smooth lifetime consumption, not terminal wealth. The RL agents learned this from scratch -- consume steadily, invest conservatively, and you get more utility than hoarding wealth. The baselines use a fixed 4\% withdrawal rate and mostly just invest, accumulating large volatile wealth but getting less lifetime utility.''
+``The paradox: RL agents have much lower terminal wealth -- around \$90--115 versus \$490 for static 60/40. But CRRA utility with $\gamma = 2$ rewards smooth lifetime consumption, not terminal wealth. The RL agents learned this from scratch -- consume steadily, invest appropriately, and you get more utility than hoarding wealth. The baselines use a fixed 4\% withdrawal rate and mostly just invest, accumulating large volatile wealth but getting less lifetime utility.''
 
 ``This is the key insight: RL optimizes the actual objective. The baselines implicitly optimize wealth, which is a poor proxy for CRRA utility when the investor is risk-averse.''
 
 % ============================================================
-\section{Slide 17 -- Risk Metrics}
+\section{Slide 15 -- Learned Policies: What Do the Agents Do?}
 % ============================================================
 
-\textbf{[Jeffrey speaks -- $\sim$1 min]}
+\textbf{[Jeffrey speaks -- $\sim$1.5 min]}
 
-``The risk metrics reinforce the main finding. All RL agents achieve consumption Sharpe ratios above 10 -- between 4 and 10 times higher than any baseline. DQN leads at 26.53. This means the RL agents deliver much smoother consumption streams over 40 years.''
+``These policy heatmaps show what each agent actually does at different combinations of time and wealth. The x-axis is the year, the y-axis is wealth, and the color represents the stock allocation the agent chooses. We show all four agents side by side.''
 
-``The trade-off is higher max drawdown -- 54 to 66 percent for RL versus 14 to 24 percent for baselines. This makes sense: more consumption leaves a smaller wealth buffer. Importantly, this is a deliberate choice the agent made -- higher consumption smoothness is worth the drawdown risk under CRRA utility.''
+``All four agents learn the same qualitative pattern we saw in Phase 2's exact DP solution: invest heavily in stocks when young and gradually shift toward bonds as retirement approaches. This is the classic glidepath shape. But unlike a fixed glidepath, the RL agents also condition on wealth -- they invest more aggressively when wealth is low, because the marginal utility gain from risky growth is higher there.''
 
-``Linear Q has the best minimum terminal wealth at \$33.2 -- it learned conservative behavior when wealth is low, which protects against tail risks. SARSA is second at \$24.9. Interestingly, DQN has the lowest min at \$18.3 despite the best utility -- it takes more risk in exchange for higher expected consumption. No strategy hits ruin.''
+``There are interesting differences in style. The DQN policy is smoother because the neural network naturally interpolates across wealth levels. The linear agents produce sharper transitions -- the limited capacity of a linear model means it commits to cleaner decision boundaries. PPO tends toward higher stock allocations overall, reflecting its entropy-regularized exploration.''
 
-% ============================================================
-\section{Slide 18 -- Wealth Trajectories}
-% ============================================================
-
-\textbf{[Jeffrey speaks -- $\sim$45 sec]}
-
-``These plots show the story visually. On the left, wealth trajectories: baselines grow to \$400--500 because they never consume. RL agents stay around \$100--150 because they extract consumption along the way. On the right, terminal wealth distributions: baselines have wide spreads, RL agents have tight, concentrated distributions. The RL agents deliberately traded terminal wealth for lifetime consumption smoothness.''
+``The key takeaway: despite having radically different architectures -- linear weights versus 191K parameter neural nets -- all four agents converge on the same economic intuition. Young investors should take equity risk; older investors should protect capital.''
 
 % ============================================================
-\section{Slide 19 -- Utility Distributions}
+\section{Slide 16 -- Wealth Trajectories and Terminal Wealth}
 % ============================================================
 
 \textbf{[Jeffrey speaks -- $\sim$45 sec]}
 
-``This histogram is the single most important plot -- it shows the distribution of total discounted CRRA utility across 2,000 simulated lifetimes. Utility is the actual objective we're optimizing.''
+``These plots show the story visually. On the left, wealth trajectories: baselines grow to \$400--500 because they consume very little. RL agents stay around \$100--150 because they extract consumption along the way. On the right, terminal wealth distributions: baselines have wide, fat-tailed spreads, RL agents have tight, concentrated distributions.''
 
-``The RL agents are clearly shifted to the right -- higher utility. DQN and PPO concentrate tightly near $-1.5$, while baselines spread around $-2.5$ to $-3$ with long left tails. Those left tails are bad outcomes where baselines couldn't adapt to poor market conditions. The RL agents avoid these because they learned state-dependent policies.''
+``The RL agents deliberately traded terminal wealth for lifetime consumption smoothness -- and they get more CRRA utility as a result. A dollar consumed smoothly over 40 years is worth more under $\gamma=2$ than a volatile pile of money at retirement.''
 
 % ============================================================
-\section{Slide 20 -- Comparing All Four RL Agents}
+\section{Slide 17 -- Comparing All Four RL Agents}
 % ============================================================
 
 \textbf{[Jack speaks -- $\sim$1 min]}
 
-``Here's the final comparison. The cleanest takeaway: all four RL agents beat all three baselines -- optimizing the right objective matters more than which algorithm you pick.''
+``Here's the final side-by-side comparison. The cleanest takeaway: all four RL agents beat all three baselines -- optimizing the right objective matters more than which algorithm you pick.''
 
 ``Among RL agents, DQN wins on utility at $-1.54$, then Linear Q at $-1.59$. Note the pattern: the off-policy methods (Linear Q, DQN) outperform the on-policy methods (SARSA, PPO). This is consistent with theory -- off-policy methods can bootstrap from the greedy action, learning more aggressively. On-policy methods account for their own exploratory behavior, which makes them more conservative.''
 
 ``But the linear agents have major practical advantages: 5,040 parameters versus 122K or 191K, trains in 15--18 seconds versus 23 minutes for DQN, and interpretable weights. The utility gap between the best linear agent (Linear Q, $-1.59$) and the best neural agent (DQN, $-1.54$) is tiny. For most applications, the linear agents are the pragmatic choice.''
 
-``And SARSA specifically: the on-policy update means it doesn't overestimate Q-values from exploratory actions, which is why it's slightly more conservative than Linear Q. In a financial setting, this is arguably desirable -- you don't want a policy that was calibrated assuming future actions are always optimal.''
-
 % ============================================================
-\section{Slide 21 -- Conclusions}
+\section{Slide 18 -- Conclusions}
 % ============================================================
 
 \textbf{[Patrick speaks -- $\sim$1 min]}
@@ -270,7 +238,7 @@ CME 241 -- Winter 2026}
 ``For future work, we'd like to try continuous action spaces using DDPG or SAC, add more asset classes, incorporate transaction costs, and calibrate to real market data.''
 
 % ============================================================
-\section{Slide 22 -- Thank You \& Q\&A}
+\section{Slide 19 -- Thank You \& Q\&A}
 % ============================================================
 
 \textbf{[All -- open for questions]}
@@ -292,7 +260,7 @@ With 40-step episodes, TD(0) already propagates value well. Adding traces could 
 \textbf{Q: Is SARSA convergence guaranteed here?}\\
 Not with function approximation. The convergence theorem is for tabular SARSA. But linear FA + on-policy is the safest combination -- avoids the deadly triad of FA + bootstrapping + off-policy.
 
-\textbf{Q: How does Phase 3 DP compare?}\\
+\textbf{Q: How close are RL agents to optimal?}\\
 We ran the DP solver on the Phase 3 environment (discretized wealth). It achieves $\mathbb{E}[\text{Utility}] = -1.456$, confirming RL agents are close to optimal. DQN at $-1.54$ is only a 5\% optimality gap.
 
 \textbf{Q: What's the deadly triad?}\\
