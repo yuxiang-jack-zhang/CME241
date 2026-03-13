@@ -40,6 +40,11 @@ AGENT_CONFIGS = {
         epsilon_start=1.0, epsilon_end=0.05,
         epsilon_decay_episodes=8000,
     ),
+    "sarsa": dict(
+        state_dim=8, n_actions=N_ACTIONS,
+        alpha=5e-5, epsilon_start=1.0, epsilon_end=0.05,
+        epsilon_decay_episodes=2500,
+    ),
     "dqn": dict(
         state_dim=8, n_actions=N_ACTIONS,
         lr=3e-4, hidden=256, buffer_size=100000, batch_size=128,
@@ -61,6 +66,7 @@ TRAIN_EPISODES = {
     "linear_q": 15000,
     "dqn": 15000,
     "ppo": 15000,
+    "sarsa": 4000,
 }
 
 
