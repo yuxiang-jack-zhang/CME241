@@ -22,13 +22,18 @@ def train_agent(agent, env, n_episodes, agent_name="Agent", log_every=500):
             next_state, reward, done, info = env.step(action)
             ep_return += reward
 
-            if hasattr(agent, 'store') and callable(getattr(agent, 'store')):
+            if hasattr(agent, 'buffer'):
                 # Replay-based agent (e.g. DQN): store transition and do batch update
                 agent.store(state, action, reward, next_state, done)
                 loss = agent.train_step()
                 ep_loss += loss
+            elif hasattr(agent, 'actor'):
+                # PPO: store transition for rollout-based update
+                agent.store(state, action, reward, next_state, done)
+                loss = agent.train_step()
+                ep_loss += loss
             else:
-                # Online agent (e.g. Linear Q): immediate update
+                # Online agent (e.g. Linear Q, SARSA): immediate update
                 agent.update(state, action, reward, next_state, done)
 
             state = next_state
@@ -39,7 +44,7 @@ def train_agent(agent, env, n_episodes, agent_name="Agent", log_every=500):
         episode_returns.append(ep_return)
         avg = np.mean(episode_returns[-100:])
         running_avg.append(avg)
-        if hasattr(agent, 'store') and callable(getattr(agent, 'store')):
+        if hasattr(agent, 'buffer') or hasattr(agent, 'actor'):
             losses.append(ep_loss / max(steps, 1))
         agent.decay_epsilon(ep)
 
