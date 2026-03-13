@@ -12,10 +12,11 @@ from .utils import crra_scalar
 from .env import PortfolioEnv
 
 
-def simulate_strategy(strategy_fn, n_paths=2000, seed=42):
+def simulate_strategy(strategy_fn, n_paths=2000, seed=42, z0=None):
     """Simulate wealth paths under a given strategy function.
 
     strategy_fn(t, W, y, z) -> (cons_frac, weights_array)
+    z0: if not None, fix initial regime for all paths (for per-regime evaluation)
 
     Returns: wealth_paths (n, T+1), cons_paths (n, T), alloc_paths (n, T, 3), utilities (n,)
     """
@@ -26,7 +27,7 @@ def simulate_strategy(strategy_fn, n_paths=2000, seed=42):
     cum_util = np.zeros(n_paths)
 
     y_state = np.ones(n_paths, dtype=int)
-    z_state = np.ones(n_paths, dtype=int)
+    z_state = np.ones(n_paths, dtype=int) if z0 is None else np.full(n_paths, z0, dtype=int)
 
     for t in range(T):
         for i in range(n_paths):

@@ -69,8 +69,8 @@ for s in range(6):           # stocks: 0.0, 0.2, ..., 1.0
 ALLOC_ARRAY = np.array(ALLOC_LIST)  # shape (21, 3)
 N_ALLOC = len(ALLOC_ARRAY)
 
-# Consumption fractions
-CONS_FRACS = np.array([0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20])
+# Consumption fractions — finer at low end where baselines operate
+CONS_FRACS = np.array([0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.08, 0.12, 0.16, 0.20])
 N_CONS = len(CONS_FRACS)
 
-N_ACTIONS = N_CONS * N_ALLOC  # 231
+N_ACTIONS = N_CONS * N_ALLOC  # 210

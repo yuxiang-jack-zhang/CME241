@@ -13,7 +13,7 @@ np.random.seed(42)
 torch.manual_seed(42)
 random.seed(42)
 
-from .config import N_ACTIONS
+from .config import N_ACTIONS, N_REGIME, REGIME_LABELS
 from .env import PortfolioEnv
 from .agents import AGENT_REGISTRY
 from .train import train_agent
@@ -21,11 +21,12 @@ from .simulate import (
     simulate_strategy, make_strategy,
     static_60_40, static_equal, glidepath_strategy,
 )
+from .dp_baseline import make_dp_strategy
 from .visualize import (
     plot_learning_curves, plot_policy_heatmaps, plot_regime_comparison,
     plot_terminal_wealth, plot_wealth_trajectories, plot_utility_distributions,
     plot_allocation_stacks, plot_consumption_paths,
-    print_comparison_table, print_risk_metrics,
+    print_comparison_table, print_risk_metrics, generate_report,
 )
 
 
@@ -48,8 +49,8 @@ AGENT_CONFIGS = {
     ),
     "dqn": dict(
         state_dim=8, n_actions=N_ACTIONS,
-        lr=3e-4, hidden=256, buffer_size=100000, batch_size=128,
-        target_update_freq=200, gamma=1.0,
+        lr=3e-4, hidden=256, buffer_size=500000, batch_size=128,
+        target_update_freq=1000, gamma=1.0,
         epsilon_start=1.0, epsilon_end=0.05,
         epsilon_decay_episodes=8000,
     ),
@@ -83,6 +84,9 @@ def main():
         config = AGENT_CONFIGS.get(key, {})
         n_eps = TRAIN_EPISODES.get(key, 4000)
         agent = AgentClass(**config)
+        # Initialize LR scheduler for DQN
+        if hasattr(agent, 'init_scheduler'):
+            agent.init_scheduler(n_eps)
         env = PortfolioEnv()
         print(f"\nTraining {agent.name} agent...")
         returns, avg, losses = train_agent(agent, env, n_eps, agent_name=agent.name,
@@ -97,8 +101,8 @@ def main():
     # ── 3. Policy visualizations ──
     agents_list = list(trained_agents.values())
     plot_policy_heatmaps(agents_list, plot_dir=PLOT_DIR)
-    for key in trained_agents:
-        plot_regime_comparison(trained_agents[key], plot_dir=PLOT_DIR)
+    for key, agent in trained_agents.items():
+        plot_regime_comparison(agent, plot_dir=PLOT_DIR)
 
     # ── 4. Monte Carlo simulations ──
     strategy_names = []
@@ -110,7 +114,9 @@ def main():
         strategy_fns.append(make_strategy(agent))
 
     # Baselines
+    dp_strategy = make_dp_strategy()
     baselines = [
+        ("DP Optimal",   dp_strategy),
         ("Static 60/40", static_60_40),
         ("Equal 1/3",    static_equal),
         ("Glidepath",    glidepath_strategy),
@@ -138,6 +144,22 @@ def main():
     n_rl = len(trained_agents)
     plot_consumption_paths(strategy_names, sim_results, n_rl_agents=n_rl, plot_dir=PLOT_DIR)
     print(f"All plots saved to {PLOT_DIR}/")
+
+    # ── 7. Per-regime evaluation ──
+    print("\nPer-regime evaluation:")
+    for zi in range(N_REGIME):
+        regime_name = REGIME_LABELS[zi]
+        print(f"\n--- Starting regime: {regime_name} ---")
+        regime_results = {}
+        for name, fn in zip(strategy_names, strategy_fns):
+            w, c, a, u = simulate_strategy(fn, N_SIM, seed=42+zi, z0=zi)
+            regime_results[name] = {"wealth": w, "cons": c, "allocs": a, "utility": u}
+        print_comparison_table(strategy_names, regime_results, N_SIM)
+
+    # ── 8. Generate report ──
+    report_path = os.path.join(os.path.dirname(__file__), "report.md")
+    generate_report(strategy_names, sim_results, N_SIM, plot_dir=PLOT_DIR,
+                    report_path=report_path)
 
 
 if __name__ == "__main__":

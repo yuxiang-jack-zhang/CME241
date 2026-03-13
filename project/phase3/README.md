@@ -1,6 +1,6 @@
 # Phase 3: Lifecycle Portfolio Allocation via RL
 
-Modular Python package for training and evaluating RL agents on a lifecycle portfolio allocation problem with 3 market regimes, 3 income states, and continuous wealth.
+Training and evaluating RL agents on a lifecycle portfolio allocation problem with 3 market regimes, 3 income states, and continuous wealth.
 
 ## Directory Structure
 
@@ -18,17 +18,17 @@ phase3/
 ├── simulate.py        # Monte Carlo simulation + baseline strategies
 ├── visualize.py       # All plotting and reporting functions
 ├── run.py             # Main entry point
-└── plots/             # Generated plots (gitignored)
+└── plots/             # Generated plots
 ```
 
 ## Running
-
+Activate the book venv first, then run
 ```bash
 # From the repo root:
-conda run -n cs124 python -m project.phase3.run
+python -m project.phase3.run
 
 # Or directly:
-conda run -n cs124 python project/phase3/run.py
+python project/phase3/run.py
 ```
 
 This trains all registered agents, runs Monte Carlo simulations against baselines, prints comparison tables, and saves plots to `phase3/plots/`.
