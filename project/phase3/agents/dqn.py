@@ -30,38 +30,56 @@ class ReplayBuffer:
         return len(self.buffer)
 
 
+def _ortho_init(module, gain=np.sqrt(2)):
+    """Orthogonal initialization."""
+    if isinstance(module, nn.Linear):
+        nn.init.orthogonal_(module.weight, gain=gain)
+        if module.bias is not None:
+            nn.init.zeros_(module.bias)
+
+
 class QNetwork(nn.Module):
-    """Feedforward Q-network."""
-    def __init__(self, state_dim, n_actions, hidden=128):
+    """Dueling Q-network: separate value and advantage streams."""
+    def __init__(self, state_dim, n_actions, hidden=256):
         super().__init__()
-        self.net = nn.Sequential(
+        self.feature = nn.Sequential(
             nn.Linear(state_dim, hidden),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(hidden, hidden),
-            nn.ReLU(),
-            nn.Linear(hidden, n_actions),
+            nn.Tanh(),
         )
+        self.value_stream = nn.Linear(hidden, 1)
+        self.advantage_stream = nn.Linear(hidden, n_actions)
+        self.feature.apply(lambda m: _ortho_init(m, np.sqrt(2)))
+        _ortho_init(self.value_stream, 1.0)
+        _ortho_init(self.advantage_stream, 0.01)
 
     def forward(self, x):
-        return self.net(x)
+        h = self.feature(x)
+        v = self.value_stream(h)
+        a = self.advantage_stream(h)
+        return v + a - a.mean(dim=1, keepdim=True)
 
 
 class DQNAgent(BaseAgent):
-    """DQN agent with target network and experience replay."""
+    """Dueling DQN agent with target network and experience replay."""
 
-    def __init__(self, state_dim, n_actions, lr=1e-3, buffer_size=50000,
-                 batch_size=64, target_update_freq=50,
+    uses_replay = True
+
+    def __init__(self, state_dim, n_actions, lr=1e-3, hidden=256, buffer_size=50000,
+                 batch_size=64, target_update_freq=50, gamma=1.0,
                  epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_episodes=3000):
         self.n_actions = n_actions
         self.batch_size = batch_size
         self.target_update_freq = target_update_freq
+        self.gamma = gamma
         self.epsilon = epsilon_start
         self.eps_start = epsilon_start
         self.eps_end = epsilon_end
         self.eps_decay = epsilon_decay_episodes
 
-        self.q_net = QNetwork(state_dim, n_actions).to(device)
-        self.target_net = QNetwork(state_dim, n_actions).to(device)
+        self.q_net = QNetwork(state_dim, n_actions, hidden).to(device)
+        self.target_net = QNetwork(state_dim, n_actions, hidden).to(device)
         self.target_net.load_state_dict(self.q_net.state_dict())
 
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=lr)
@@ -102,7 +120,7 @@ class DQNAgent(BaseAgent):
 
         with torch.no_grad():
             q_next = self.target_net(ns).max(dim=1)[0]
-            target = r + (1 - d) * q_next
+            target = r + self.gamma * (1 - d) * q_next
 
         loss = self.loss_fn(q_vals, target)
 

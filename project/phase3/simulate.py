@@ -39,8 +39,7 @@ def simulate_strategy(strategy_fn, n_paths=2000, seed=42):
             cons[i, t] = c
             savings = w - c
 
-            if c > 1e-10:
-                cum_util[i] += BETA ** t * crra_scalar(c)
+            cum_util[i] += BETA ** t * crra_scalar(c)
 
             scen = RETURN_SCENARIOS[zi]
             ki = rng.choice(N_RETURN_SCENARIOS, p=scen["probs"])

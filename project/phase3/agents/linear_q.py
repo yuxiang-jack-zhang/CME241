@@ -5,7 +5,13 @@ from .base import BaseAgent
 
 
 class LinearQAgent(BaseAgent):
-    """Linear function approximation Q-learning agent."""
+    """Linear function approximation Q-learning with rich feature expansion.
+
+    Features include polynomial terms of continuous features (time, wealth)
+    AND interactions between continuous features and one-hot categorical
+    features (income, regime), so the agent can learn different policies
+    for different regimes/income states.
+    """
 
     def __init__(self, state_dim, n_actions, alpha=1e-4, gamma_discount=1.0,
                  epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_episodes=2000):
@@ -17,10 +23,13 @@ class LinearQAgent(BaseAgent):
         self.eps_end = epsilon_end
         self.eps_decay = epsilon_decay_episodes
 
-        # Polynomial features: original + squared + pairwise of continuous features
-        # State dim = 8 (2 continuous + 6 one-hot)
-        # Features: 8 original + 2 squared + 1 cross + bias = 12
-        self.feat_dim = state_dim + 3 + 1
+        # state = [t_feat, w_feat, y0, y1, y2, z0, z1, z2]  (dim=8)
+        # Expanded features:
+        #   8 original + 3 polynomial (t^2, w^2, t*w)
+        #   + 6 interactions: t*y0..y2, t*z0..z2
+        #   + 6 interactions: w*y0..y2, w*z0..z2
+        #   + 1 bias = 24
+        self.feat_dim = 24
         self.weights = np.zeros((n_actions, self.feat_dim))
 
     @property
@@ -28,10 +37,13 @@ class LinearQAgent(BaseAgent):
         return "Linear Q"
 
     def _expand_features(self, state):
-        """Expand raw state features with polynomial terms."""
-        t_feat, w_feat = state[0], state[1]
-        poly = np.array([t_feat**2, w_feat**2, t_feat * w_feat])
-        return np.concatenate([state, poly, [1.0]])
+        """Expand raw state features with polynomial and interaction terms."""
+        t, w = state[0], state[1]
+        cat = state[2:]  # 6 one-hot values (3 income + 3 regime)
+        poly = np.array([t**2, w**2, t * w])
+        t_cross = t * cat   # 6 terms: time interacted with each categorical
+        w_cross = w * cat   # 6 terms: wealth interacted with each categorical
+        return np.concatenate([state, poly, t_cross, w_cross, [1.0]])
 
     def q_values(self, state):
         """Compute Q(s, a) for all actions."""

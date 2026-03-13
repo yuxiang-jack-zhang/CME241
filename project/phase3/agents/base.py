@@ -6,6 +6,10 @@ from abc import ABC, abstractmethod
 class BaseAgent(ABC):
     """Interface that all agents must implement."""
 
+    # Set to True in agents that use store()/train_step() (DQN, PPO).
+    # Agents that use update() (LinearQ) leave this False.
+    uses_replay = False
+
     @property
     @abstractmethod
     def name(self) -> str:

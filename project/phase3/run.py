@@ -36,30 +36,31 @@ N_SIM = 2000
 AGENT_CONFIGS = {
     "linear_q": dict(
         state_dim=8, n_actions=N_ACTIONS,
-        alpha=5e-5, epsilon_start=1.0, epsilon_end=0.05,
-        epsilon_decay_episodes=2500,
+        alpha=1e-5, gamma_discount=1.0,
+        epsilon_start=1.0, epsilon_end=0.05,
+        epsilon_decay_episodes=8000,
     ),
     "dqn": dict(
         state_dim=8, n_actions=N_ACTIONS,
-        lr=5e-4, buffer_size=50000, batch_size=64,
-        target_update_freq=100,
+        lr=3e-4, hidden=256, buffer_size=100000, batch_size=128,
+        target_update_freq=200, gamma=1.0,
         epsilon_start=1.0, epsilon_end=0.05,
-        epsilon_decay_episodes=4000,
+        epsilon_decay_episodes=8000,
     ),
     "ppo": dict(
         state_dim=8, n_actions=N_ACTIONS,
-        lr=3e-4, hidden=128,
-        rollout_steps=512, ppo_epochs=4, minibatch_size=64,
-        clip_range=0.2, ent_coef=0.01, vf_coef=0.5,
+        lr=3e-4, hidden=256,
+        rollout_steps=2048, ppo_epochs=10, minibatch_size=128,
+        clip_range=0.2, ent_coef=0.05, vf_coef=0.5,
         max_grad_norm=0.5, gae_lambda=0.95, gamma=1.0,
-        epsilon_start=0.3, epsilon_end=0.0, epsilon_decay_episodes=3000,
+        epsilon_start=0.3, epsilon_end=0.0, epsilon_decay_episodes=5000,
     ),
 }
 
 TRAIN_EPISODES = {
-    "linear_q": 4000,
-    "dqn": 6000,
-    "ppo": 6000,
+    "linear_q": 15000,
+    "dqn": 15000,
+    "ppo": 15000,
 }
 
 

@@ -21,12 +21,22 @@ class PortfolioEnv:
         self.z = 1     # start normal regime
         self.done = False
 
-    def reset(self, W0_val=None, y0=None, z0=None):
-        """Reset to initial state. Returns feature vector."""
+    def reset(self, W0_val=None, y0=None, z0=None, randomize=False):
+        """Reset to initial state. Returns feature vector.
+
+        If randomize=True, sample diverse starting conditions so the agent
+        experiences a wider range of (wealth, income, regime) states early
+        in training, which is critical for learning state-dependent policies.
+        """
         self.t = 0
-        self.W = W0 if W0_val is None else W0_val
-        self.y = 1 if y0 is None else y0
-        self.z = 1 if z0 is None else z0
+        if randomize:
+            self.W = np.exp(np.random.uniform(np.log(10), np.log(W_MAX * 0.6)))
+            self.y = np.random.randint(N_INCOME)
+            self.z = np.random.randint(N_REGIME)
+        else:
+            self.W = W0 if W0_val is None else W0_val
+            self.y = 1 if y0 is None else y0
+            self.z = 1 if z0 is None else z0
         self.done = False
         return self.featurize()
 
@@ -60,9 +70,8 @@ class PortfolioEnv:
         consumption = cons_frac * self.W
         savings = self.W - consumption
 
-        # Immediate reward (discounted CRRA utility of consumption)
-        # Zero consumption gets a large negative penalty from crra_scalar,
-        # matching Phase 2 DP where u(0) = -1e18 blocked infeasible choices.
+        # Discounted CRRA utility of consumption (β^t accounts for time
+        # value of money). Agents use gamma=1.0 since discounting is here.
         reward = BETA ** self.t * crra_scalar(consumption)
 
         # Transition: sample return scenario
@@ -87,8 +96,7 @@ class PortfolioEnv:
         # Check terminal
         if self.t >= T:
             self.done = True
-            terminal_reward = BETA ** T * crra_scalar(self.W)
-            reward += terminal_reward
+            reward += BETA ** T * crra_scalar(self.W)
 
         info = {"consumption": consumption, "savings": savings,
                 "portfolio_return": portfolio_return, "W": self.W}

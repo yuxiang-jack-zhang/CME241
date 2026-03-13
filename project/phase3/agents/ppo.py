@@ -51,24 +51,46 @@ class RolloutBuffer:
         )
 
 
-class ActorCritic(nn.Module):
-    """Shared-trunk actor-critic for discrete action spaces."""
+def _ortho_init(module, gain=np.sqrt(2)):
+    """Orthogonal initialization (standard for PPO)."""
+    if isinstance(module, nn.Linear):
+        nn.init.orthogonal_(module.weight, gain=gain)
+        if module.bias is not None:
+            nn.init.zeros_(module.bias)
 
-    def __init__(self, state_dim, n_actions, hidden=128):
+
+class ActorCritic(nn.Module):
+    """Separate actor and critic networks for discrete action spaces.
+
+    Using independent networks avoids the shared-trunk problem where the
+    critic's loss dominates and prevents the actor from learning
+    state-dependent features.
+    """
+
+    def __init__(self, state_dim, n_actions, hidden=256):
         super().__init__()
-        self.shared = nn.Sequential(
+        self.actor = nn.Sequential(
             nn.Linear(state_dim, hidden),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(hidden, hidden),
-            nn.ReLU(),
+            nn.Tanh(),
+            nn.Linear(hidden, n_actions),
         )
-        self.actor_head = nn.Linear(hidden, n_actions)
-        self.critic_head = nn.Linear(hidden, 1)
+        self.critic = nn.Sequential(
+            nn.Linear(state_dim, hidden),
+            nn.Tanh(),
+            nn.Linear(hidden, hidden),
+            nn.Tanh(),
+            nn.Linear(hidden, 1),
+        )
+        self.actor[:-1].apply(lambda m: _ortho_init(m, np.sqrt(2)))
+        _ortho_init(self.actor[-1], 0.01)  # small init for policy head
+        self.critic[:-1].apply(lambda m: _ortho_init(m, np.sqrt(2)))
+        _ortho_init(self.critic[-1], 1.0)
 
     def forward(self, x):
-        h = self.shared(x)
-        logits = self.actor_head(h)
-        value = self.critic_head(h).squeeze(-1)
+        logits = self.actor(x)
+        value = self.critic(x).squeeze(-1)
         return logits, value
 
     def get_dist(self, x):
@@ -80,7 +102,9 @@ class ActorCritic(nn.Module):
 class PPOAgent(BaseAgent):
     """Proximal Policy Optimization with clipped surrogate objective."""
 
-    def __init__(self, state_dim, n_actions, lr=3e-4, hidden=128,
+    uses_replay = True
+
+    def __init__(self, state_dim, n_actions, lr=3e-4, hidden=256,
                  rollout_steps=512, ppo_epochs=4, minibatch_size=64,
                  clip_range=0.2, ent_coef=0.01, vf_coef=0.5,
                  max_grad_norm=0.5, gae_lambda=0.95, gamma=1.0,

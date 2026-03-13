@@ -11,8 +11,10 @@ def train_agent(agent, env, n_episodes, agent_name="Agent", log_every=500):
     losses = []
     t0 = time.time()
 
+    use_replay = getattr(agent, 'uses_replay', False)
+
     for ep in range(n_episodes):
-        state = env.reset()
+        state = env.reset(randomize=True)
         ep_return = 0.0
         ep_loss = 0.0
         steps = 0
@@ -22,13 +24,11 @@ def train_agent(agent, env, n_episodes, agent_name="Agent", log_every=500):
             next_state, reward, done, info = env.step(action)
             ep_return += reward
 
-            if hasattr(agent, 'store') and callable(getattr(agent, 'store')):
-                # Replay-based agent (e.g. DQN): store transition and do batch update
+            if use_replay:
                 agent.store(state, action, reward, next_state, done)
                 loss = agent.train_step()
                 ep_loss += loss
             else:
-                # Online agent (e.g. Linear Q): immediate update
                 agent.update(state, action, reward, next_state, done)
 
             state = next_state
@@ -39,7 +39,7 @@ def train_agent(agent, env, n_episodes, agent_name="Agent", log_every=500):
         episode_returns.append(ep_return)
         avg = np.mean(episode_returns[-100:])
         running_avg.append(avg)
-        if hasattr(agent, 'store') and callable(getattr(agent, 'store')):
+        if use_replay:
             losses.append(ep_loss / max(steps, 1))
         agent.decay_epsilon(ep)
 
