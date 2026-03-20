@@ -116,19 +116,19 @@ TD-error clipping at ±10 prevents gradient explosions from the large CRRA penal
 
 **Hyperparameters:** Same as Linear Q.
 
-#### 3.3.3 Dueling DQN (Off-Policy)
+#### 3.3.3 Double Dueling DQN (Off-Policy)
 
 **Architecture:** Dueling Q-network with separate value and advantage streams:
-- Shared feature extractor: 8 → 256 → Tanh → 256 → Tanh
+- Shared feature extractor: 8 → 256 → LayerNorm → Tanh → 256 → LayerNorm → Tanh
 - Value stream: 256 → 1
 - Advantage stream: 256 → 231
 - Q(s, a) = V(s) + A(s, a) − mean_a A(s, a)
 
-Orthogonal initialization with gain √2 for hidden layers, gain 0.01 for the advantage head, and gain 1.0 for the value head.
+Orthogonal initialization with gain √2 for hidden layers, gain 0.01 for the advantage head, and gain 1.0 for the value head. LayerNorm after each linear layer stabilizes activations under varying reward scales.
 
-**Training:** Experience replay buffer (100K capacity), target network (updated every 200 steps), Huber loss, gradient clipping at norm 10.
+**Training:** Experience replay buffer (100K capacity), Double DQN action selection (online net selects, target net evaluates), soft Polyak target updates (τ = 0.005 every step), Huber loss, gradient clipping at norm 10. Rewards clipped to [−10, 0] before storage to prevent extreme CRRA penalties from dominating gradients.
 
-**Hyperparameters:** lr = 3×10⁻⁴, batch size = 128, γ = 1.0, ε: 1.0 → 0.05 over 8,000 episodes, 15,000 total episodes.
+**Hyperparameters:** lr = 1×10⁻⁴, batch size = 128, γ = 1.0, τ = 0.005, ε: 1.0 → 0.05 over 8,000 episodes, 15,000 total episodes.
 
 #### 3.3.4 PPO (On-Policy, Actor-Critic)
 
@@ -182,6 +182,24 @@ Getting RL agents to learn meaningful lifecycle policies required solving severa
 
 **Rich Feature Expansion (Linear Q, SARSA):** Expanding the 8-dimensional state to 24 dimensions with polynomial terms and cross-interactions (time×regime, wealth×income) allows the linear model to represent state-dependent policies despite having no hidden layers.
 
+### 4.6 DQN Policy Collapse (Constant Action)
+
+**Problem:** The initial Dueling DQN collapsed to a constant policy: 100% stocks and 20% consumption at every state, producing uniform policy heatmaps with no state dependence. This is a well-known DQN failure mode, particularly acute in large action spaces.
+
+**Root causes:**
+1. **Q-value overestimation:** The vanilla max operator in Q-learning is positively biased, and the bias grows with the number of actions. With 231 actions, overestimation quickly causes one action to dominate all others.
+2. **Extreme CRRA reward scale:** Penalties reaching −10,000 for near-zero consumption create enormous gradient variance, destabilizing network updates and preventing recovery from early overestimation.
+3. **Hard target updates:** Copying the full network every N steps causes sudden shifts in the bootstrap target, compounding the overestimation problem.
+
+**Fixes applied:**
+- **Double DQN:** Online network selects the best next action, target network evaluates it — directly breaks the overestimation feedback loop.
+- **Reward clipping to [−10, 0]:** Bounds gradient magnitudes while preserving the signal that zero consumption is bad.
+- **Soft Polyak target updates (τ = 0.005):** Smooths target evolution, eliminating sudden training instability.
+- **LayerNorm:** Stabilizes hidden activations across the varying reward scale.
+- **Learning rate reduced to 1×10⁻⁴:** Pairs with the softer target updates for more stable convergence.
+
+**Outcome:** After these fixes, DQN learns a state-dependent policy with allocation and consumption varying across time and wealth.
+
 ### 4.5 Training Improvements
 
 **Randomized Initial Conditions:** Training with random starting wealth, income, and regime ensures the agent experiences diverse states, preventing overfitting to a single trajectory. This was the single most impactful change for learning state-dependent policies.
@@ -202,10 +220,10 @@ Getting RL agents to learn meaningful lifecycle policies required solving severa
 
 | Strategy | E[Utility] | E[W_T] | Med[W_T] | Std[W_T] | P10[W_T] | P90[W_T] |
 |----------|-----------|--------|----------|----------|----------|----------|
-| **DQN** | **−1.54** | 115.3 | 107.2 | 51.8 | 57.9 | 185.5 |
+| **DQN** | **−1.48** | 73.7 | 70.0 | 29.6 | 39.9 | 112.1 |
 | **Linear Q** | **−1.59** | 96.0 | 86.6 | 33.8 | 59.8 | 144.2 |
 | **SARSA** | **−1.88** | 99.1 | 93.3 | 35.3 | 58.1 | 149.9 |
-| **PPO** | **−1.95** | 91.0 | 81.2 | 43.2 | 44.8 | 149.8 |
+| **PPO** | **−2.40** | 121.9 | 117.3 | 39.6 | 73.4 | 177.8 |
 | Static 60/40 | −2.63 | 487.3 | 470.1 | 166.1 | 281.0 | 747.3 |
 | Glidepath | −2.63 | 489.1 | 474.1 | 140.0 | 319.7 | 696.5 |
 | Equal 1/3 | −2.75 | 407.8 | 396.1 | 112.4 | 270.5 | 564.4 |
@@ -216,10 +234,10 @@ All four RL agents outperform all three baselines on expected CRRA utility. The 
 
 | Strategy | Max Drawdown | Sharpe(C) | Min W_T |
 |----------|-------------|-----------|---------|
-| DQN | 60.4% | 26.53 | 18.3 |
+| DQN | 62.7% | 10.11 | 19.4 |
 | Linear Q | 54.0% | 18.30 | 33.2 |
 | SARSA | 57.1% | 10.25 | 24.9 |
-| PPO | 66.1% | 12.58 | 20.5 |
+| PPO | 52.0% | 5.70 | 32.7 |
 | Static 60/40 | 23.8% | 2.65 | 98.4 |
 
 The RL agents have higher consumption Sharpe ratios (smoother consumption relative to mean) but accept higher maximum drawdowns and lower minimum terminal wealth. This reflects the fundamental tradeoff: aggressive consumption smoothing reduces the wealth buffer.
@@ -236,7 +254,7 @@ The RL agents have higher consumption Sharpe ratios (smoother consumption relati
 - Consumption shows a staircase pattern varying with both time and wealth.
 - The on-policy nature produces a more conservative policy than off-policy Q-learning.
 
-**DQN** converged to an aggressive constant policy: ~100% stocks and ~20% consumption. This policy achieves the best expected utility by exploiting the equity premium over 40 periods, though it doesn't differentiate across states.
+**DQN** after stabilization fixes (Double DQN, reward clipping, soft target updates, LayerNorm) learns a rich state-dependent policy: stock allocation shows a clear time-wealth gradient (high equity at low wealth and late horizons, lower equity early with high wealth), consumption increases over the horizon, and regime comparison shows distinctly different allocations across bear, normal, and bull markets. DQN achieves the best expected utility (−1.48) with lower terminal wealth (E[W_T] = 73.7), indicating aggressive consumption smoothing.
 
 **PPO** learned a regime-dependent policy: bear, normal, and bull market panels show distinctly different stock allocations. It uses lower stock allocation early (~10%) and higher later (~20–30%), with consumption increasing over time.
 
@@ -246,9 +264,9 @@ The RL agents have higher consumption Sharpe ratios (smoother consumption relati
 
 ### 6.1 Linear Models vs. Neural Networks
 
-A surprising finding is that the linear agents (Linear Q and SARSA) produced more visually state-dependent policies than the neural network agents (DQN and PPO). This is partly because the 24-dimensional feature expansion explicitly encodes the interaction terms (time×regime, wealth×income) that the policy should respond to. The neural networks must learn these interactions implicitly from data, which requires more training.
+The linear agents (Linear Q and SARSA) produce the most interpretable policies thanks to the 24-dimensional feature expansion that explicitly encodes interaction terms (time×regime, wealth×income). Neural networks must learn these interactions implicitly from data.
 
-DQN achieves the best utility despite a constant-looking policy because its action (100% stocks, 20% consumption) happens to be near-optimal across most states for a CRRA-2 investor with a 40-year horizon. The equity premium dominates at this time scale.
+DQN initially collapsed to a constant policy (100% stocks, 20% consumption everywhere) — a classic failure mode in large action spaces. Resolving this required four targeted fixes: Double DQN to break overestimation, reward clipping to tame gradient variance from extreme CRRA penalties, soft Polyak target updates to smooth training, and LayerNorm to stabilize activations. This illustrates that applying value-based deep RL to large discrete action spaces demands careful engineering, especially when reward scales vary by orders of magnitude.
 
 ### 6.2 On-Policy vs. Off-Policy
 
@@ -272,4 +290,4 @@ This project demonstrated the full pipeline from exact Dynamic Programming to sc
 
 The iterative debugging process was itself instructive: a single misplaced `reward = 0.0` for zero consumption made all agents learn degenerate policies, and a broken dispatch mechanism silently prevented an entire agent class from learning. These issues are representative of the practical challenges in applying RL to financial problems, where reward shaping, numerical stability, and correct software engineering are as important as algorithm choice.
 
-The best-performing agent (Dueling DQN, E[Utility] = −1.54) learned an aggressive equity-heavy strategy that exploits the long horizon, while the most interpretable agents (Linear Q and SARSA) learned rich state-dependent glidepath policies that vary meaningfully with time, wealth, income, and market regime. Together, they validate that RL is a viable and powerful approach to lifecycle asset allocation at scales where exact DP is no longer feasible.
+The DQN agent required significant engineering (Double DQN, reward clipping, Polyak averaging, LayerNorm) to overcome policy collapse in the 231-action space, while the linear agents learned rich state-dependent policies with minimal tuning. Together, these results validate that RL is a viable approach to lifecycle asset allocation at scales where exact DP is infeasible, while highlighting that reward shaping, numerical stability, and algorithmic refinements are as important as architecture choice.

@@ -48,10 +48,11 @@ AGENT_CONFIGS = {
     ),
     "dqn": dict(
         state_dim=8, n_actions=N_ACTIONS,
-        lr=3e-4, hidden=256, buffer_size=100000, batch_size=128,
+        lr=1e-4, hidden=256, buffer_size=100000, batch_size=128,
         target_update_freq=200, gamma=1.0,
         epsilon_start=1.0, epsilon_end=0.05,
         epsilon_decay_episodes=8000,
+        tau=0.005,
     ),
     "ppo": dict(
         state_dim=8, n_actions=N_ACTIONS,
